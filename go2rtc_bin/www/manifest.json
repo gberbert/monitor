@@ -1,0 +1,21 @@
+{
+    "name": "Antigravity VMS",
+    "short_name": "VMS Monitor",
+    "start_url": "/index.html",
+    "display": "standalone",
+    "background_color": "#1a1a1a",
+    "theme_color": "#000000",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "placeholder_error.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "placeholder_error.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

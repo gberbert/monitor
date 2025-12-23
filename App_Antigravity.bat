@@ -1,0 +1,44 @@
+@echo off
+title Antigravity VMS (Proxy Mode)
+color 0B
+
+echo ========================================================
+echo   INICIANDO SERVIDOR WEB VMS (MODO PROXY)
+echo ========================================================
+echo.
+
+:: 1. Garantir Dependencias
+echo [0/3] Verificando dependencias Python...
+pip install flask requests >nul 2>&1
+
+:: 2. Iniciar Go2RTC (Backend de Video :1984)
+echo [1/3] Iniciando Go2RTC (Video)...
+:: Usamos modo config limpo
+cd /d "%~dp0go2rtc_bin"
+start /MIN "Go2RTC Backend" go2rtc.exe -config go2rtc.yaml
+
+:: Aguardar Go2RTC
+timeout /t 3 /nobreak >nul
+
+:: 3. Iniciar Proxy (Front+Back Unificados :5000)
+echo [2/3] Iniciando Proxy VMS (Site+Video)...
+cd /d "%~dp0"
+start /MIN "VMS Proxy" python vms_proxy.py
+
+:: Aguardar Proxy
+timeout /t 2 /nobreak >nul
+
+:: 4. Iniciar Tunnel (LINK FIXO: cams.osberberts.com)
+echo [3/3] Conectando ao Mundo (Cloudflare Tunnel Fixo)...
+start /MIN "Cloudflare Tunnel" cloudflared.exe tunnel --config config.yml run
+
+echo.
+echo ========================================================
+echo   SISTEMA ONLINE!
+echo   O Proxy esta unindo o Site (C:\antigravity_www)
+echo   com o Video (Go2RTC :1984) numa coisa so (:5000).
+echo.
+echo   ACESSE EM QUALQUER LUGAR:
+echo   >> https://cams.osberberts.com
+echo ========================================================
+pause

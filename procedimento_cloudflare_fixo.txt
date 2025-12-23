@@ -1,0 +1,29 @@
+2. Cloudflare Tunnel (Link Fixo)
+O motivo do link mudar a cada reinício é que estamos usando o modo "Quick Tunnel" (Túnel Rápido), que é temporário e randômico. É ótimo para testes, mas ruim para produção.
+
+Para ter um link fixo (ex: cameras.seusite.com ou até mesmo um fixo da Cloudflare se você tiver conta), você precisa criar um Túnel Nomeado (Named Tunnel).
+
+O que precisamos fazer (Passo a Passo Lógico):
+
+Ter uma conta Cloudflare (Grátis): Você precisa de uma conta lá.
+Autenticar a máquina:
+Rodamos um comando uma única vez: cloudflared tunnel login.
+Ele vai gerar um link, você abre no navegador, loga na Cloudflare e autoriza essa máquina.
+Criar o Túnel:
+Comando: cloudflared tunnel create antigravity_vms.
+Isso gera um ID único (ex: a1b2c3d4...) que nunca muda.
+Vincular ao seu Domínio:
+Lá no painel da Cloudflare (site), você vai no DNS do seu domínio e cria um registro CNAME:
+Nome: 
+cameras
+ (para ficar cameras.seudominio.com) -> Destino: a1b2c3d4...cfargotunnel.com (o ID do seu túnel).
+Rodar o Túnel (Configuração):
+Em vez de rodar com --url localhost:5000, criamos um arquivo config.yml simples:
+yaml
+tunnel: <ID-DO-TUNEL>
+credentials-file: C:\Users\...\.cloudflared\<ID>.json
+ingress:
+  - hostname: cameras.seudominio.com
+    service: http://localhost:5000
+  - service: http_status:404
+E o comando no seu .bat muda para: cloudflared tunnel run antigravity_vms.

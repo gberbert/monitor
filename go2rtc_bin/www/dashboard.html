@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel - Antigravity VMS</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-logout {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* MOSAIC GRID */
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .camera-card {
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .camera-card:hover {
+            transform: scale(1.02);
+            border: 2px solid #6200ea;
+        }
+
+        .camera-card.dragging {
+            opacity: 0.4;
+            border: 2px dashed #999;
+        }
+
+        .camera-card.over {
+            border: 2px dashed #6200ea;
+        }
+
+        .camera-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .camera-title {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            opacity: 0.7;
+        }
+
+        .offline-placeholder {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .overlay-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 10;
+        }
+
+        .sort-btn {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 1px solid #555;
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .sort-btn:hover:not(:disabled) {
+            background: #6200ea;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>🎥 Monitoramento</h1>
+        <div id="network-info" style="font-size: 14px; color: #aaa; margin-right: 20px;"></div>
+        <button id="btn-install" class="btn-logout"
+            style="display:none; background-color: #6200ea; margin-right: 10px;">📲 Instalar App</button>
+        <button class="btn-logout" onclick="logout()">Sair do Sistema</button>
+    </div>
+
+    <div id="grid" class="camera-grid">
+        <div style="grid-column: 1/-1; text-align: center; padding: 20px;">
+            Carregando câmeras...
+        </div>
+    </div>
+
+    <script>
+        // Auth Logic
+        if (sessionStorage.getItem('vms_auth') !== 'true') {
+            window.location.href = 'index.html';
+        }
+
+        // Fetch Local IP Info
+        fetch('/api/info')
+            .then(res => res.json())
+            .then(data => {
+                const infoDiv = document.getElementById('network-info');
+                if (data.local_url) {
+                    infoDiv.innerHTML = `🏠 Acesso Local (Offline): <a href="${data.local_url}" style="color:#00e676" target="_blank">${data.local_url}</a>`;
+                }
+            })
+            .catch(err => console.error("Failed to fetch network info", err));
+
+        function logout() {
+            sessionStorage.removeItem('vms_auth');
+            window.location.href = 'index.html';
+        }
+
+        // LOAD CAMERAS (DB + STREAMS)
+        // Global State
+        let currentCameraList = [];
+        let globalActiveStreams = {}; // Cache stream status
+
+        async function loadCameras() {
+            try {
+                // Fetch Data in Parallel: DB (Order/Names) e Streams (Status)
+                const [dbRes, streamRes] = await Promise.all([
+                    fetch('/api/cameras'),
+                    fetch('/api/streams')
+                ]).catch(e => [null, null]);
+
+                if (!dbRes || !streamRes) { throw new Error("API failure"); }
+
+                let dbCams = [];
+                try { dbCams = await dbRes.json(); } catch (e) { console.error("DB Parse Error", e); }
+
+                const activeStreams = await streamRes.json();
+                globalActiveStreams = activeStreams; // Cache it
+
+                // Fallback Logic
+                if ((!dbCams || dbCams.length === 0)) {
+                    // Legacy Mode
+                    const keys = Object.keys(activeStreams).sort();
+                    currentCameraList = keys
+                        .filter(key => !key.endsWith('_src') && !key.endsWith('_mjpeg'))
+                        .map(key => ({
+                            name: formatName(key),
+                            mac: 'unknown',
+                            original_key: key
+                        }));
+                } else {
+                    // DB Mode
+                    currentCameraList = dbCams;
+                }
+
+                renderGrid(activeStreams);
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById('grid').innerHTML = 'Erro ao carregar câmeras: ' + e.message;
+            }
+        }
+
+        function renderGrid(activeStreams) {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+
+            if (currentCameraList.length === 0) {
+                grid.innerHTML = '<div style="padding:20px">Nenhuma câmera configurada.</div>';
+                return;
+            }
+
+            currentCameraList.forEach((cam, index) => {
+                const cleanId = toSafeId(cam.name);
+
+                // Create Card
+                const card = document.createElement('div');
+                card.className = 'camera-card';
+                card.dataset.id = cleanId;
+
+                // Click to Fullscreen (Ignore clicks on buttons)
+                card.onclick = (e) => {
+                    if (e.target.tagName !== 'BUTTON') {
+                        openFullscreen(cleanId);
+                    }
+                };
+
+                // Image Source
+                let snapshotUrl = 'placeholder_error.png';
+                let isOnline = false;
+                if (activeStreams[`${cleanId}_mjpeg`] || activeStreams[cleanId]) {
+                    isOnline = true;
+                    snapshotUrl = `/api/frame.jpeg?src=${cleanId}_mjpeg`;
+                }
+
+                const offlineHtml = isOnline ? '' : '<div class="offline-placeholder">Offline</div>';
+                const imgHtml = `<img id="img-${cleanId}" src="${snapshotUrl}" draggable="false" onerror="this.onerror=null; this.src='placeholder_error.png';">`;
+
+                // Sorting Buttons Logic
+                const isFirst = index === 0;
+                const isLast = index === currentCameraList.length - 1;
+
+                // CRITICO: event.stopPropagation() impede que o clique no botao abra o video
+                const upBtn = `<button class="sort-btn" onclick="event.stopPropagation(); moveCam(${index}, -1)" ${isFirst ? 'disabled style="opacity:0.3"' : ''}>⬆</button>`;
+                const downBtn = `<button class="sort-btn" onclick="event.stopPropagation(); moveCam(${index}, 1)" ${isLast ? 'disabled style="opacity:0.3"' : ''}>⬇</button>`;
+
+                card.innerHTML = `
+                    ${imgHtml}
+                    ${offlineHtml}
+                    
+                    <div class="overlay-controls">
+                        ${upBtn}
+                        ${downBtn}
+                    </div>
+
+                    <div class="camera-title">
+                        <span>${cam.name}</span>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+
+                if (isOnline) {
+                    startCardRefresh(cleanId);
+                }
+            });
+        }
+
+        // --- Arrow Reordering Logic ---
+        function moveCam(index, direction) {
+            console.log("Move Cam Triggered", index, direction);
+            const newIndex = index + direction;
+
+            // Boundary checks
+            if (newIndex < 0 || newIndex >= currentCameraList.length) return;
+
+            // Swap in Array
+            const temp = currentCameraList[index];
+            currentCameraList[index] = currentCameraList[newIndex];
+            currentCameraList[newIndex] = temp;
+
+            // FIX: Render LOCAL changes immediately. 
+            // Do NOT call loadCameras() because DB is not updated yet (Race Condition).
+            renderGrid(globalActiveStreams);
+
+            // Save Order
+            saveNewOrder();
+        }
+
+        function saveNewOrder() {
+            const orderList = currentCameraList.map((cam, index) => ({
+                mac: cam.mac,
+                rank: index
+            })).filter(c => c.mac !== 'unknown');
+
+            if (orderList.length > 0) {
+                fetch('/api/reorder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderList)
+                }).then(res => console.log("Order saved"));
+            }
+        }
+
+        function startCardRefresh(key) {
+            // Refresh every 2 seconds with random jitter to spread load
+            const interval = 2000 + Math.random() * 500;
+            setInterval(() => {
+                const img = document.getElementById(`img-${key}`);
+                if (img) {
+                    // Update SRC to fetch new frame
+                    img.src = `/api/frame.jpeg?src=${key}_mjpeg&t=${Date.now()}`;
+                }
+            }, interval);
+        }
+
+        function openFullscreen(streamId) {
+            window.location.href = `player.html?src=${streamId}`;
+        }
+
+        function formatName(key) {
+            return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function toSafeId(name) {
+            return name.toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/g, "_")
+                .replace(/_+/g, "_")
+                .replace(/^_|_$/g, "");
+        }
+
+        // Init
+        loadCameras();
+
+        // Refresh list occasionally (e.g., if new cams added)
+        // Warning: This resets order if we just fetch blindly.
+        // Maybe only reload if count changes? For now, disable auto-reload to not break dragging UX
+        // setInterval(loadCameras, 60000);
+
+        // PWA INSTALL LOGIC
+        let deferredPrompt;
+        const installBtn = document.getElementById('btn-install');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI to notify the user they can add to home screen
+            installBtn.style.display = 'block';
+            console.log("PWA Install Ready");
+        });
+
+        installBtn.addEventListener('click', (e) => {
+            // Hide the app provided install promotion
+            installBtn.style.display = 'none';
+            // Show the prompt
+            deferredPrompt.prompt();
+            // Wait for the user to respond to the prompt
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted the A2HS prompt');
+                } else {
+                    console.log('User dismissed the A2HS prompt');
+                }
+                deferredPrompt = null;
+            });
+        });
+
+        if (navigator.serviceWorker) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(() => console.log('Service Worker Registered'));
+        }
+    </script>
+</body>
+
+</html>

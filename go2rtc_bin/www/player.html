@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador - Antigravity VMS</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <style>
+        body {
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            position: absolute;
+            top: 0;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .back-btn {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            background: #333;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #status-log {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="top-bar">
+        <a href="dashboard.html" class="back-btn">⬅ Voltar</a>
+        <button onclick="document.getElementById('mjpeg-stream').requestFullscreen()" class="back-btn">⛶
+            Fullscreen</button>
+    </div>
+
+    <!-- MJPEG Player (Robust over HTTP Tunnels) -->
+    <div style="display: flex; justify-content: center; align-items: center; height: 100%; background: #000;">
+        <img id="mjpeg-stream" style="max-width: 100%; max-height: 100%; object-fit: contain;"
+            alt="Carregando Video...">
+    </div>
+
+    <div id="status-log">Modo: Carregando...</div>
+
+    <script>
+        // Auth Check
+        if (sessionStorage.getItem('vms_auth') !== 'true') {
+            window.location.href = 'index.html';
+        }
+
+        const img = document.getElementById('mjpeg-stream');
+        const statusLog = document.getElementById('status-log');
+        const urlParams = new URLSearchParams(window.location.search);
+        let STREAM_ID = urlParams.get('src');
+
+        if (!STREAM_ID) {
+            statusLog.innerText = "Erro: Nenhuma câmera selecionada.";
+            statusLog.style.color = "red";
+        } else {
+            statusLog.innerText = `Conectando a: ${STREAM_ID} (Alta Fluidez)...`;
+
+            // Use the dedicated MJPEG stream we created in config
+            // This ensures FFmpeg is doing the heavy lifting for smooth video
+            const mjpegStreamId = `${STREAM_ID}_mjpeg`;
+            img.src = `/api/stream.mjpeg?src=${mjpegStreamId}`;
+
+            img.onload = () => {
+                statusLog.innerText = "Status: ONLINE (Vídeo Fluido)";
+                statusLog.style.color = "#0f0";
+            };
+
+            img.onerror = () => {
+                console.warn("MJPEG stream failed, falling back to snapshots.");
+                statusLog.innerText = "Modo: Snapshot (Falha no Vídeo)";
+                statusLog.style.color = "orange";
+
+                // FALLBACK: Use snapshot mode from source stream
+                // This guarantees visualization even if transcoding fails
+                // NOTE: Using _src ensures we pull from native RTSP via Go2RTC's internal snapshotter
+                startSnapshotMode(`${STREAM_ID}_src`);
+            };
+        }
+
+        function startSnapshotMode(streamId) {
+            // Snapshot Loop (5 FPS)
+            // Use querySelector to ensure we target the image even if ID context is weird
+            const imgTarget = document.getElementById('mjpeg-stream');
+            imgTarget.onerror = null; // Prevent recursion
+
+            setInterval(() => {
+                imgTarget.src = `/api/frame.jpeg?src=${streamId}&t=${Date.now()}`;
+            }, 200);
+        }
+
+        if (navigator.serviceWorker) {
+            navigator.serviceWorker.register('/sw.js');
+        }
+    </script>
+</body>
+
+</html>
