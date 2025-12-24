@@ -221,7 +221,8 @@
             object-fit: cover;
         }
 
-        .camera-title {
+        /* REFACTORED OVERLAY FOR STATUS & CONFIG */
+        .camera-overlay {
             position: absolute;
             bottom: 0;
             left: 0;
@@ -229,8 +230,34 @@
             background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
             padding: 8px 12px;
             box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 2;
+            /* Garante que fique acima da imagem/video */
+        }
+
+        .camera-title {
+            /* Removido position absolute antigo */
             font-size: 13px;
             color: #ddd;
+            flex-grow: 1;
+        }
+
+        .config-btn {
+            cursor: pointer;
+            font-size: 1.2rem;
+            opacity: 0.6;
+            transition: opacity 0.2s, transform 0.2s;
+            padding: 5px;
+            z-index: 10;
+            /* Garante clique */
+        }
+
+        .config-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+            color: var(--accent);
         }
 
         /* --- MODAL --- */
@@ -403,6 +430,56 @@
         </div>
     </div>
 
+    <!-- OS BERBERTS CONFIG MODAL -->
+    <div id="modalConfig" class="modal-overlay" style="display:none; align-items:center; justify-content:center;">
+        <div class="modal" style="min-width:300px;">
+            <h3 style="margin-top:0">⚙️ Configurar Câmera</h3>
+            <input type="hidden" id="editMac">
+
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Nome</label>
+                <input type="text" id="editName"
+                    style="width:100%; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+            </div>
+
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">IP / Host</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="editIp"
+                        style="flex-grow:1; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+                    <button onclick="checkIP()" title="Testar Conexão (Ping)"
+                        style="background:#444; border:none; color:white; border-radius:4px; cursor:pointer; width:40px;">📶</button>
+                </div>
+                <div id="ip-status" style="font-size:0.8rem; height:15px; margin-top:2px;"></div>
+            </div>
+
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Usuário</label>
+                <input type="text" id="editUser"
+                    style="width:100%; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+            </div>
+
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Senha</label>
+                <div style="position:relative">
+                    <input type="password" id="editPass"
+                        style="width:100%; padding:8px; padding-right:35px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+                    <span onclick="togglePass()"
+                        style="position:absolute; right:10px; top:8px; cursor:pointer; opacity:0.7">👁️</span>
+                </div>
+            </div>
+
+            <div class="modal-buttons" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn-cancel" onclick="closeConfig()"
+                    style="padding:8px 15px; background:transparent; border:1px solid #555; color:#ddd; cursor:pointer; border-radius:4px;">Cancelar</button>
+                <button class="btn-primary" onclick="deleteCamera()"
+                    style="background:#cf6679; border:none; color:white; padding:8px 15px; cursor:pointer; border-radius:4px; margin-right:auto;">Excluir</button>
+                <button class="btn-primary" onclick="saveConfig()"
+                    style="background:#26a69a; border:none; color:white; padding:8px 15px; cursor:pointer; border-radius:4px;">Salvar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // === AUTH & INIT ===
         const user = sessionStorage.getItem('vms_user');
@@ -474,37 +551,161 @@
                     div.style.opacity = '0.5';
                 }
 
+                // --- CONTEÚDO DO CARD ---
+                // Se estiver online, tenta video. Se offline, placeholder direto.
                 let innerContent = '';
+
+                // Placeholder Offline (Reutilizável)
+                const offlineHtml = `
+                    <div class="offline-placeholder" style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#151515; color:#555;">
+                        <div style="font-size:2rem; margin-bottom:5px">🔌</div>
+                        <div style="font-weight:bold; font-size:0.9rem; letter-spacing:1px">OFFLINE</div>
+                    </div>
+                `;
+
                 if (isOnline) {
-                    innerContent = `<img id="img-${streamKey || 'null'}" src="${imgUrl}" onerror="this.src='placeholder_error.png'">`;
-                } else {
+                    // MJPEG Stream BLINDADO (Versão 2.0 - Handler Dedicado)
                     innerContent = `
-                        <div style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#151515; color:#555;">
-                            <div style="font-size:2rem; margin-bottom:5px">🔌</div>
-                            <div style="font-weight:bold; font-size:0.9rem; letter-spacing:1px">OFFLINE</div>
+                        <div style="width:100%; height:100%; position:relative; background:#151515;">
+                            <img id="img-${streamKey || 'null'}" 
+                                 src="/api/stream.mjpeg?src=${streamKey}" 
+                                 style="width:100%; height:100%; object-fit:cover; display:block; opacity:0; transition:opacity 0.5s;" 
+                                 onload="this.style.opacity='1'"
+                                 onerror="handleStreamError(this, '${streamKey}')">
                         </div>
                     `;
+                } else {
+                    innerContent = offlineHtml;
                 }
 
                 div.innerHTML = `
                     ${innerContent}
-                    <div class="camera-title">
-                        ${cam.name} 
-                        <span style="float:right; color:${isOnline ? '#26a69a' : '#cf6679'}">●</span>
+                    
+                    <div class="camera-overlay">
+                        <div class="camera-title">
+                            ${cam.name} 
+                            <span id="status-${streamKey || 'off'}" class="status-dot" style="float:right; color:${isOnline ? '#26a69a' : '#cf6679'}">●</span>
+                        </div>
+                        <div class="config-btn" onclick="openConfig('${cam.mac}', '${cam.name}', '${cam.ip || ''}', '${cam.username || ''}', '${cam.password || ''}')">⚙️</div>
                     </div>
                 `;
                 grid.appendChild(div);
 
-                if (isOnline && streamKey) startReload(streamKey, imgUrl);
+                // No longer needed: startReload(streamKey, imgUrl);
             });
         }
 
-        function startReload(streamKey, baseUrl) {
-            const separator = baseUrl.includes('?') ? '&' : '?';
-            setInterval(() => {
-                const el = document.getElementById(`img-${streamKey}`);
-                if (el) el.src = `${baseUrl}${separator}t=${Date.now()}`;
-            }, 3500);
+        // --- HANDLER ROBUSTO DE ERRO ---
+        function handleStreamError(imgEl, key) {
+            console.warn("Stream Error for:", key);
+
+            // 1. Esconde a imagem falha
+            imgEl.style.display = 'none';
+
+            // 2. Injeta o Placeholder Offline (se já não tiver)
+            const parent = imgEl.parentElement;
+            if (!parent.querySelector('.offline-placeholder')) {
+                parent.innerHTML = `
+                    <div class="offline-placeholder" style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#151515; color:#555;">
+                        <div style="font-size:2rem; margin-bottom:5px">🔌</div>
+                        <div style="font-weight:bold; font-size:0.9rem; letter-spacing:1px">OFFLINE</div>
+                    </div>
+                `;
+            }
+
+            // 3. Atualiza o Status Dot para VERMELHO
+            const statusDot = document.getElementById(`status-${key}`);
+            if (statusDot) {
+                statusDot.style.color = '#cf6679'; // Vermelho Erro
+                statusDot.title = "Offline (Falha no Stream)";
+            }
+        }
+
+        // function startReload(streamKey, baseUrl) { ... } (REMOVED logic to prevent loop)
+
+        // --- FUNCÕES DO MÓDAL DE CONFIGURAÇÃO ---
+        function openConfig(mac, name, ip, user, pass) {
+            // Previne propagação se o card for clicavel
+            window.event.stopPropagation();
+
+            document.getElementById('editMac').value = mac;
+            document.getElementById('editName').value = name;
+            document.getElementById('editIp').value = ip;
+            document.getElementById('editUser').value = user;
+            document.getElementById('editPass').value = pass;
+
+            document.getElementById('modalConfig').style.display = 'flex';
+        }
+
+        function closeConfig() {
+            document.getElementById('modalConfig').style.display = 'none';
+        }
+
+        async function saveConfig() {
+            const data = {
+                mac: document.getElementById('editMac').value,
+                name: document.getElementById('editName').value,
+                ip: document.getElementById('editIp').value,
+                username: document.getElementById('editUser').value,
+                password: document.getElementById('editPass').value
+            };
+
+            try {
+                const res = await fetch('/api/save_camera', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    closeConfig();
+                    loadCameras(); // Recarrega para aplicar
+                } else {
+                    alert('Erro ao salvar');
+                }
+            } catch (e) {
+                alert('Erro de conexão');
+            }
+        }
+
+        // --- NOVAS FUNCOES DE UI ---
+        function togglePass() {
+            const el = document.getElementById('editPass');
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+
+        async function checkIP() {
+            const ip = document.getElementById('editIp').value;
+            const stat = document.getElementById('ip-status');
+            if (!ip) return;
+
+            stat.innerText = 'Testando ping/porta...';
+            stat.style.color = '#aaa';
+
+            try {
+                const res = await fetch('/api/check_ip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    stat.innerText = '✅ Câmera Online na Rede (Porta 554)';
+                    stat.style.color = '#4caf50';
+                } else {
+                    stat.innerText = '❌ Sem resposta: ' + (data.error || 'Timeout');
+                    stat.style.color = '#cf6679';
+                }
+            } catch (e) {
+                stat.innerText = '❌ Erro ao chamar teste';
+                stat.style.color = '#cf6679';
+            }
+        }
+
+        async function deleteCamera() {
+            if (!confirm("Tem certeza que deseja excluir esta câmera?")) return;
+            // Implementar endpoint de delete se necessário ou usar save com flag.
+            // Por enquanto, remove da lista visualmente ou chama API especifica
+            alert("Funcionalidade de Excluir será implementada no backend em breve.");
         }
 
         // === ADMIN FUNCTIONS ===

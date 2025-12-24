@@ -85,69 +85,65 @@ def get_db_cameras():
         for cam in db_cams:
             cam_name = cam.get('name', 'Unknown')
             
-            # --- Lógica de Match do Go2RTC ---
-            # O Go2RTC pode ter chaves como 'Minha_Camera', 'Minha_Camera_mjpeg', etc.
-            # Vamos tentar achar a chave "principal"
-            
+            # --- BUSCA INTELIGENTE DE STREAMS (ROBUST MATCHING) ---
             found_key = None
             
-            # Candidatos normais e suas versoes minusculas
-            raw_candidates = [
-                cam_name,
-                cam_name.replace(" ", "_"),
-                cam_name.replace("(", "").replace(")", "").strip(),
-                cam_name.replace(" ", "").replace("(", "").replace(")", "")
+            # 1. Normalização do Nome do Banco (Minúsculo, sem espaços)
+            import re
+            cam_name_clean = re.sub(r'[^a-z0-9]', '', cam_name.lower())
+            
+            # Lista de chaves ativas no Go2RTC
+            stream_keys = list(active_streams.keys())
+            
+            # ESTRATÉGIA A: Busca Exata (Nome Completo)
+            # Prioriza versao _mjpeg se existir
+            candidates = [
+                f"{cam_name}_mjpeg",        # Ex: Varanda_mjpeg
+                cam_name,                   # Ex: Varanda
+                f"{cam_name_clean}_mjpeg",  # Ex: varanda_mjpeg
+                cam_name_clean              # Ex: varanda
             ]
             
-            candidates = []
-            for c in raw_candidates:
-                candidates.append(c)
-                candidates.append(c.lower()) # CRITICO: Go2RTC usa minusculo (ex: rua_base)
+            for cand in candidates:
+                # Procura case-insensitive nas chaves
+                match = next((k for k in stream_keys if k.lower() == cand.lower()), None)
+                if match:
+                    found_key = match
+                    break
             
-            # Verifica exatos
-            for k in candidates:
-                if k in active_streams: found_key = k; break
-                if f"{k}_mjpeg" in active_streams: found_key = f"{k}_mjpeg"; break
-            
-            # Verifica Fuzzy (Contém) se nao achou
+            # ESTRATÉGIA B: Busca Fuzzy (Contém) - Fallback
+            # Útil se o nome no banco for "Câmera Rua" e no Go2RTC for "Rua"
             if not found_key:
-                # Normaliza: tudo minusculo, sem especial
-                import re
-                safe_db = re.sub(r'[^a-z0-9]', '', cam_name.lower())
-                
-                for stream_key in active_streams.keys():
-                    safe_stream = re.sub(r'[^a-z0-9]', '', stream_key.lower())
-                    # Se um contiver o outro (evitar falso positivo muito curto)
-                    if len(safe_db) > 3 and safe_db in safe_stream:
-                        found_key = stream_key
-                        break
+                for k in stream_keys:
+                    k_clean = re.sub(r'[^a-z0-9]', '', k.lower())
+                    # Se o nome limpo do banco estiver contido na chave (ex: 'rua' in 'rua_mjpeg')
+                    # Ou vice-versa (ex: 'rua' in 'camera_rua')
+                    if (len(cam_name_clean) > 3 and cam_name_clean in k_clean) or \
+                       (len(k_clean) > 3 and k_clean in cam_name_clean):
+                        # Se achou uma versão _mjpeg, prefira ela imediatamente
+                        if '_mjpeg' in k.lower():
+                            found_key = k
+                            break
+                        # Se não, guarda essa como tentativa, mas continua procurando uma mjpeg melhor
+                        if not found_key: found_key = k
 
-            # Monta Objeto Final
+            # --- DEFINIÇÃO FINAL DO STREAM ---
+            # Se achou algo, define URLs. Se não, tudo fica None (Fallback Offline)
             is_online = (found_key is not None)
-            
-            # Se achou chave ex: 'Rua_mjpeg', a chave 'base' pro player deve ser 'Rua'
             base_key = found_key
-            snapshot_key = found_key # Padrao: usa a propria chave
+            
+            # Lógica para garantir que usamos MJPEG se disponível
+            # Se achamos 'rua', mas existe 'rua_mjpeg', trocamos para 'rua_mjpeg' para performance
+            if found_key and '_mjpeg' not in found_key.lower():
+                 better_mjpeg = next((k for k in stream_keys if k.lower() == f"{found_key.lower()}_mjpeg"), None)
+                 if better_mjpeg:
+                     base_key = better_mjpeg # Upgrade para MJPEG
 
-            if found_key:
-                 # Normaliza para achar a raiz
-                 if found_key.endswith('_mjpeg'):
-                     base_key = found_key.replace('_mjpeg', '')
-                 elif found_key.endswith('_src'):
-                     base_key = found_key.replace('_src', '')
-                 else:
-                     base_key = found_key
-
-                 # Se existir uma versao MJPEG explicita, use ela para o SNAPSHOT (mais rapido/confiavel)
-                 if f"{base_key}_mjpeg" in active_streams:
-                     snapshot_key = f"{base_key}_mjpeg"
-                 # Se nao, usa a propria (vai forçar transcode no Go2RTC, pode ser lento)
-                
             enriched_cams.append({
                 **cam,
                 "is_online": is_online,
-                "stream_key": base_key if found_key else None,
-                "snapshot_url": f"/api/frame.jpeg?src={snapshot_key}" if found_key else "placeholder_error.png"
+                "stream_key": base_key, # Chave exata para usar na API stream.mjpeg
+                "snapshot_url": f"/api/frame.jpeg?src={base_key}" if is_online else None # Fallback antigo
             })
             
         return jsonify(enriched_cams)
@@ -184,6 +180,25 @@ def save_camera():
     except Exception as e:
         print(f"Save Error: {e}")
         return str(e), 500
+
+@app.route('/api/check_ip', methods=['POST'])
+def check_ip():
+    try:
+        ip = request.json.get('ip')
+        if not ip: return jsonify({"ok": False, "error": "Sem IP"})
+        
+        # Simples teste de conexão TCP na porta RTSP (554)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2) # 2 segundos timeout
+        result = sock.connect_ex((ip, 554))
+        sock.close()
+        
+        if result == 0:
+            return jsonify({"ok": True, "msg": "Porta 554 aberta"})
+        else:
+            return jsonify({"ok": False, "error": f"Porta Fechada (Erro {result})"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 # --- AUTH API ---
 @app.route('/api/login', methods=['POST'])

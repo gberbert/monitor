@@ -1,0 +1,51 @@
+log:
+  level: info
+  api: debug
+  rtsp: warn
+  streams: error
+
+ffmpeg:
+  bin: "C:/antigravity_www/ffmpeg.exe"
+
+api:
+  listen: ":1984"
+  origin: "*"
+  static: "www"
+
+webrtc:
+  listen: ":8555"
+
+streams:
+  piscina_src: rtsp://berbert:viguera2001@192.168.3.14:554/cam/realmonitor?channel=1&subtype=0
+  piscina: ffmpeg:piscina_src#video=h264#vf=scale=1280:720
+  piscina_mjpeg: exec:C:/antigravity_www/ffmpeg.exe -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.14:554/cam/realmonitor?channel=1&subtype=0" -vf "scale=1024:576" -c:v mjpeg -an -f mjpeg -
+
+  rua_src: rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0
+  rua: ffmpeg:rua_src#video=h264#vf=crop=in_w:in_h/2:0:0,scale=1280:720
+  rua_mjpeg: exec:C:/antigravity_www/ffmpeg.exe -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0" -vf "crop=in_w:in_h/2:0:0,scale=1024:576" -c:v mjpeg -an -f mjpeg -
+
+  varanda_src: rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1
+  varanda: ffmpeg:varanda_src#video=h264#vf=crop=in_w:in_h/2:0:0,scale=1280:720
+  varanda_mjpeg: exec:C:/antigravity_www/ffmpeg.exe -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1" -vf "crop=in_w:in_h/2:0:0,scale=1024:576" -c:v mjpeg -an -f mjpeg -
+
+  rua_base_src: rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0
+  rua_base: ffmpeg:rua_base_src#video=h264#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
+  rua_base_mjpeg: exec:C:/antigravity_www/ffmpeg.exe -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0" -vf "crop=in_w:in_h/2:0:in_h/2,scale=1024:576" -c:v mjpeg -an -f mjpeg -
+
+  varanda_base_src: rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1
+  varanda_base: ffmpeg:varanda_base_src#video=h264#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
+  varanda_base_mjpeg: exec:C:/antigravity_www/ffmpeg.exe -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1" -vf "crop=in_w:in_h/2:0:in_h/2,scale=1024:576" -c:v mjpeg -an -f mjpeg -
+
+  camera_de_tomada_area_src: rtsp://127.0.0.1:8554/camera_27
+  camera_de_tomada_area: ffmpeg:camera_de_tomada_area_src#video=h264#vf=scale=1280:720
+  camera_de_tomada_area_mjpeg: exec:C:/antigravity_www/ffmpeg.exe -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/camera_27" -vf "scale=1024:576" -c:v mjpeg -an -f mjpeg -
+
+
+  # VARIANTE D (Substream - Geralmente mais compativel)
+  test_D: dvrip://admin:@192.168.3.27:34567?subtype=1
+
+  # VARIANTE E (Usuario 'default')
+  test_E: dvrip://default:@192.168.3.27:34567
+
+  # DEBUG: Tentar RTSP forcado na porta 34567 (Raro mas possivel)
+  test_F: rtsp://admin:@192.168.3.27:34567/cam/realmonitor?channel=1&subtype=0

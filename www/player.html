@@ -89,12 +89,13 @@
             statusLog.innerText = "Erro: Nenhuma câmera selecionada.";
             statusLog.style.color = "red";
         } else {
-            statusLog.innerText = `Conectando a: ${STREAM_ID} (Alta Fluidez)...`;
+            statusLog.innerText = `Conectando a: ${STREAM_ID}...`;
 
-            // Use the dedicated MJPEG stream we created in config
-            // This ensures FFmpeg is doing the heavy lifting for smooth video
-            const mjpegStreamId = `${STREAM_ID}_mjpeg`;
-            img.src = `/api/stream.mjpeg?src=${mjpegStreamId}`;
+            // O ID já vem correto do dashboard (ex: 'rua_mjpeg')
+            // Não adicione sufixos extras.
+            const streamUrl = `/api/stream.mjpeg?src=${STREAM_ID}`;
+            console.log("Player connecting to:", streamUrl);
+            img.src = streamUrl;
 
             img.onload = () => {
                 statusLog.innerText = "Status: ONLINE (Vídeo Fluido)";
@@ -102,27 +103,30 @@
             };
 
             img.onerror = () => {
-                console.warn("MJPEG stream failed, falling back to snapshots.");
-                statusLog.innerText = "Modo: Snapshot (Falha no Vídeo)";
-                statusLog.style.color = "orange";
+                console.warn("Stream load failed.");
+                statusLog.innerText = "OFFLINE - Falha no Vídeo";
+                statusLog.style.color = "red";
+                // Esconde a imagem quebrada
+                img.style.display = 'none';
 
-                // FALLBACK: Use snapshot mode from source stream
-                // This guarantees visualization even if transcoding fails
-                // NOTE: Using _src ensures we pull from native RTSP via Go2RTC's internal snapshotter
-                startSnapshotMode(`${STREAM_ID}_src`);
+                // Cria um elemento visual de erro no centro se não existir
+                if (!document.getElementById('err-msg')) {
+                    const msg = document.createElement('div');
+                    msg.id = 'err-msg';
+                    msg.innerHTML = '<div style="font-size:3rem">🔌</div><div>OFFLINE</div>';
+                    msg.style.position = 'absolute';
+                    msg.style.top = '50%';
+                    msg.style.left = '50%';
+                    msg.style.transform = 'translate(-50%, -50%)';
+                    msg.style.textAlign = 'center';
+                    msg.style.color = '#555';
+                    document.body.appendChild(msg);
+                }
             };
         }
 
-        function startSnapshotMode(streamId) {
-            // Snapshot Loop (5 FPS)
-            // Use querySelector to ensure we target the image even if ID context is weird
-            const imgTarget = document.getElementById('mjpeg-stream');
-            imgTarget.onerror = null; // Prevent recursion
-
-            setInterval(() => {
-                imgTarget.src = `/api/frame.jpeg?src=${streamId}&t=${Date.now()}`;
-            }, 200);
-        }
+        // Snapshot fallback removido para evitar loop de erro.
+        // Se o stream falhar, é melhor mostrar Offline do que spammar o servidor.
 
         if (navigator.serviceWorker) {
             navigator.serviceWorker.register('/sw.js');
