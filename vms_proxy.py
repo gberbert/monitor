@@ -162,21 +162,40 @@ def reorder_cameras():
         print(e)
         return str(e), 500
 
+@app.route('/api/delete_camera', methods=['POST'])
+def remove_camera():
+    try:
+        data = request.json
+        mac = data.get('mac')
+        if mac: 
+            database.delete_camera(mac)
+            return jsonify({"status": "ok"})
+        return jsonify({"error": "No MAC provided"}), 400
+    except Exception as e:
+        return str(e), 500
+
 @app.route('/api/save_camera', methods=['POST'])
 def save_camera():
     try:
         data = request.json
+        mac = data.get('mac')
+        
+        # SE NÃO VIER ID/MAC, É UMA NOVA CÂMERA -> GERA ID
+        if not mac:
+            import uuid
+            mac = "MANUAL-" + str(uuid.uuid4())[:8].upper()
+            
         # Call safe DB upsert
         database.upsert_camera(
-            data.get('mac'),
-            data.get('name'),
+            mac,
+            data.get('name', 'Nova Câmera'),
             data.get('ip'),
             data.get('username'),
             data.get('password'),
-            data.get('url'),
+            data.get('url', ''),
             data.get('crop_mode', 0)
         )
-        return jsonify({"status": "ok"})
+        return jsonify({"status": "ok", "mac": mac})
     except Exception as e:
         print(f"Save Error: {e}")
         return str(e), 500
@@ -199,6 +218,46 @@ def check_ip():
             return jsonify({"ok": False, "error": f"Porta Fechada (Erro {result})"})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
+
+@app.route('/api/check_login', methods=['POST'])
+def check_login():
+    import subprocess
+    data = request.json
+    ip = data.get('ip')
+    user = data.get('username')
+    pwd = data.get('password')
+    
+    # 1. Tentar Intelbras Substream (Leve)
+    # 2. Tentar Raiz
+    test_urls = [
+         f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=1&subtype=1",
+         f"rtsp://{user}:{pwd}@{ip}:554/"
+    ]
+    
+    ffmpeg_path = "C:/antigravity_www/ffmpeg.exe"
+    if not os.path.exists(ffmpeg_path): ffmpeg_path = "ffmpeg"
+
+    last_error = "Falha Geral"
+    
+    for url in test_urls:
+        try:
+            # Teste rápido: conectar e ler info
+            cmd = [ffmpeg_path, "-hide_banner", "-rtsp_transport", "tcp", "-i", url, "-t", "0.5", "-f", "null", "-"]
+            # Timeout curto
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4)
+            
+            if result.returncode == 0:
+                return jsonify({"ok": True, "msg": "Conectado!"})
+            
+            err = result.stderr.decode('utf-8', errors='ignore')
+            if "401 Unauthorized" in err:
+                return jsonify({"ok": False, "error": "Senha Incorreta (401)"})
+            last_error = "Sem resposta ou erro de conexão"
+            
+        except Exception as e:
+            last_error = str(e)
+            
+    return jsonify({"ok": False, "error": last_error})
 
 # --- AUTH API ---
 @app.route('/api/login', methods=['POST'])

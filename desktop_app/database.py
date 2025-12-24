@@ -247,3 +247,11 @@ def get_all_cameras():
             "rank": rank
         })
     return cameras
+
+def delete_camera(mac):
+    with db_lock:
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("DELETE FROM cameras WHERE mac = ?", (mac,))
+        conn.commit()
+        conn.close()

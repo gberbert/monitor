@@ -57,12 +57,43 @@
         }
 
         .app-title {
-            font-size: 1.1rem;
+            font-size: 1.35rem;
             font-weight: 500;
             color: #ddd;
-            flex-grow: 1;
+            flex-grow: 0;
+            margin-left: auto;
             letter-spacing: 1px;
         }
+
+        #app-clock {
+            font-size: 1.35rem;
+            margin-left: 15px;
+            font-weight: 500;
+            color: #fff;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 600px) {
+            #app-clock {
+                font-size: 0.75rem !important;
+                margin-left: 5px !important;
+            }
+
+            .app-title {
+                font-size: 0.75rem !important;
+                margin-left: auto !important;
+            }
+
+            .menu-btn {
+                margin-right: 5px;
+            }
+
+            .app-header {
+                padding: 0 10px;
+            }
+        }
+
 
         /* --- DRAWER --- */
         .drawer-overlay {
@@ -354,7 +385,10 @@
 <body>
 
     <header class="app-header">
-        <button class="menu-btn" onclick="toggleDrawer()">☰</button>
+        <div style="display:flex; align-items:center">
+            <button class="menu-btn" onclick="toggleDrawer()">☰</button>
+            <div id="app-clock">--:--:--</div>
+        </div>
         <div class="app-title">OS BERBERTS</div>
     </header>
 
@@ -370,6 +404,10 @@
             <a href="#" class="menu-item active" onclick="toggleDrawer()">
                 <span class="menu-icon">📷</span> Monitoramento
             </a>
+
+            <div class="menu-item" onclick="openNewCamera()">
+                <span class="menu-icon">➕</span> Nova Câmera
+            </div>
 
             <!-- Dynamic Button (Local/Online) -->
             <div id="btn-access-container"></div>
@@ -433,7 +471,7 @@
     <!-- OS BERBERTS CONFIG MODAL -->
     <div id="modalConfig" class="modal-overlay" style="display:none; align-items:center; justify-content:center;">
         <div class="modal" style="min-width:300px;">
-            <h3 style="margin-top:0">⚙️ Configurar Câmera</h3>
+            <h3 id="configTitle" style="margin-top:0">⚙️ Configurar Câmera</h3>
             <input type="hidden" id="editMac">
 
             <div class="input-group" style="margin-bottom:15px">
@@ -461,18 +499,23 @@
 
             <div class="input-group" style="margin-bottom:15px">
                 <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Senha</label>
-                <div style="position:relative">
-                    <input type="password" id="editPass"
-                        style="width:100%; padding:8px; padding-right:35px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
-                    <span onclick="togglePass()"
-                        style="position:absolute; right:10px; top:8px; cursor:pointer; opacity:0.7">👁️</span>
+                <div style="position:relative; display:flex; gap:5px;">
+                    <div style="position:relative; flex-grow:1">
+                        <input type="password" id="editPass"
+                            style="width:100%; padding:8px; padding-right:35px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+                        <span onclick="togglePass()"
+                            style="position:absolute; right:10px; top:8px; cursor:pointer; opacity:0.7">👁️</span>
+                    </div>
+                    <button onclick="checkLogin()" title="Testar Acesso Real (RTSP)"
+                        style="background:#555; border:none; color:white; border-radius:4px; cursor:pointer; width:40px;">🔑</button>
                 </div>
+                <div id="login-status" style="font-size:0.8rem; height:15px; margin-top:2px;"></div>
             </div>
 
             <div class="modal-buttons" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
                 <button class="btn-cancel" onclick="closeConfig()"
                     style="padding:8px 15px; background:transparent; border:1px solid #555; color:#ddd; cursor:pointer; border-radius:4px;">Cancelar</button>
-                <button class="btn-primary" onclick="deleteCamera()"
+                <button id="btnDelete" class="btn-primary" onclick="deleteCamera()"
                     style="background:#cf6679; border:none; color:white; padding:8px 15px; cursor:pointer; border-radius:4px; margin-right:auto;">Excluir</button>
                 <button class="btn-primary" onclick="saveConfig()"
                     style="background:#26a69a; border:none; color:white; padding:8px 15px; cursor:pointer; border-radius:4px;">Salvar</button>
@@ -502,7 +545,7 @@
 
             if (isLocal) {
                 container.innerHTML = `
-                    <a href="https://cams.osberberts.com" target="_blank" class="btn-access">
+                    <a href="https://cams.osberberts.com" target="_self" class="btn-access">
                         🌐 Acesso Online
                     </a>`;
             } else {
@@ -510,7 +553,7 @@
                 // Tenta usar o IP detectado pelo backend
                 const localLink = info.local_url || 'http://localhost:5000';
                 container.innerHTML = `
-                    <a href="${localLink}" target="_blank" class="btn-access" style="border-color:#555; color:#aaa">
+                    <a href="${localLink}" target="_self" class="btn-access" style="border-color:#555; color:#aaa">
                         🏠 Acesso Local
                     </a>`;
             }
@@ -625,14 +668,44 @@
 
         // --- FUNCÕES DO MÓDAL DE CONFIGURAÇÃO ---
         function openConfig(mac, name, ip, user, pass) {
-            // Previne propagação se o card for clicavel
             window.event.stopPropagation();
+
+            // MODO EDIÇÃO
+            const title = document.getElementById('configTitle');
+            if (title) title.innerText = '⚙️ Editar Câmera';
+
+            const btnDel = document.getElementById('btnDelete');
+            if (btnDel) btnDel.style.display = 'block';
 
             document.getElementById('editMac').value = mac;
             document.getElementById('editName').value = name;
             document.getElementById('editIp').value = ip;
             document.getElementById('editUser').value = user;
             document.getElementById('editPass').value = pass;
+
+            const stat = document.getElementById('ip-status');
+            if (stat) stat.innerText = '';
+
+            document.getElementById('modalConfig').style.display = 'flex';
+        }
+
+        function openNewCamera() {
+            // MODO CRIAÇÃO
+            const title = document.getElementById('configTitle');
+            if (title) title.innerText = '➕ Nova Câmera';
+
+            const btnDel = document.getElementById('btnDelete');
+            if (btnDel) btnDel.style.display = 'none';
+
+            // Limpa campos
+            document.getElementById('editMac').value = '';
+            document.getElementById('editName').value = '';
+            document.getElementById('editIp').value = '';
+            document.getElementById('editUser').value = 'admin';
+            document.getElementById('editPass').value = '';
+
+            const stat = document.getElementById('ip-status');
+            if (stat) stat.innerText = '';
 
             document.getElementById('modalConfig').style.display = 'flex';
         }
@@ -701,11 +774,55 @@
             }
         }
 
+        async function checkLogin() {
+            const ip = document.getElementById('editIp').value;
+            const user = document.getElementById('editUser').value;
+            const pass = document.getElementById('editPass').value;
+            const stat = document.getElementById('login-status');
+
+            if (!ip) return;
+            stat.innerText = 'Testando RTSP...';
+            stat.style.color = '#aaa';
+
+            try {
+                const res = await fetch('/api/check_login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip, username: user, password: pass })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    stat.innerText = '✅ Acesso Permitido!'; stat.style.color = '#4caf50';
+                } else {
+                    stat.innerText = '❌ Acesso Negado: ' + (data.error || '?'); stat.style.color = '#cf6679';
+                }
+            } catch (e) {
+                stat.innerText = '❌ Erro API'; stat.style.color = '#cf6679';
+            }
+        }
+
         async function deleteCamera() {
-            if (!confirm("Tem certeza que deseja excluir esta câmera?")) return;
-            // Implementar endpoint de delete se necessário ou usar save com flag.
-            // Por enquanto, remove da lista visualmente ou chama API especifica
-            alert("Funcionalidade de Excluir será implementada no backend em breve.");
+            if (!confirm("Tem certeza que deseja excluir esta câmera? Esta ação não pode ser desfeita.")) return;
+
+            const mac = document.getElementById('editMac').value;
+            if (!mac) return; // Segurança
+
+            try {
+                const res = await fetch('/api/delete_camera', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mac })
+                });
+                if (res.ok) {
+                    closeConfig();
+                    loadCameras();
+                } else {
+                    const err = await res.json();
+                    alert('Erro ao excluir: ' + (err.error || 'Erro desconhecido'));
+                }
+            } catch (e) {
+                alert('Erro de conexão ao excluir');
+            }
         }
 
         // === ADMIN FUNCTIONS ===
@@ -797,6 +914,22 @@
         btnInstall.addEventListener('click', () => {
             btnInstall.style.display = 'none'; deferredPrompt.prompt();
         });
+
+        // --- RELOGIO DIGITAL ---
+        function updateClock() {
+            const now = new Date();
+            const d = String(now.getDate()).padStart(2, '0');
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const y = now.getFullYear();
+            const H = String(now.getHours()).padStart(2, '0');
+            const M = String(now.getMinutes()).padStart(2, '0');
+            const S = String(now.getSeconds()).padStart(2, '0');
+
+            const el = document.getElementById('app-clock');
+            if (el) el.innerHTML = `${d}/${m}/${y}&nbsp;&nbsp;${H}:${M}:${S}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
 
     </script>
 </body>
