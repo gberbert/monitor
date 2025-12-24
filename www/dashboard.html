@@ -379,6 +379,17 @@
                 margin-right: 40px;
             }
         }
+
+        /* REFRESH ANIMATION */
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .rotating {
+            animation: spin 1s linear infinite;
+        }
     </style>
 </head>
 
@@ -388,8 +399,13 @@
         <div style="display:flex; align-items:center">
             <button class="menu-btn" onclick="toggleDrawer()">☰</button>
             <div id="app-clock">--:--:--</div>
+            <button id="btn-refresh" onclick="refreshDashboard()" title="Atualizar Câmeras"
+                style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer; margin-left:15px; padding:0; display:flex; align-items:center;">🔄</button>
         </div>
-        <div class="app-title">OS BERBERTS</div>
+        <div class="app-title">
+            <span style="color:#fff">OS</span>
+            <span style="color:#29b6f6">BERBERT</span><span style="color:#ff4081">S</span>
+        </div>
     </header>
 
     <!-- DRAWER -->
@@ -484,9 +500,9 @@
                 <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">IP / Host</label>
                 <div style="display:flex; gap:5px;">
                     <input type="text" id="editIp"
-                        style="flex-grow:1; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+                        style="flex-grow:1; height:36px; padding:0 8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
                     <button onclick="checkIP()" title="Testar Conexão (Ping)"
-                        style="background:#444; border:none; color:white; border-radius:4px; cursor:pointer; width:40px;">📶</button>
+                        style="background:#444; border:none; color:white; border-radius:4px; cursor:pointer; width:40px; height:36px; display:flex; align-items:center; justify-content:center;">📶</button>
                 </div>
                 <div id="ip-status" style="font-size:0.8rem; height:15px; margin-top:2px;"></div>
             </div>
@@ -502,12 +518,12 @@
                 <div style="position:relative; display:flex; gap:5px;">
                     <div style="position:relative; flex-grow:1">
                         <input type="password" id="editPass"
-                            style="width:100%; padding:8px; padding-right:35px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+                            style="width:100%; height:36px; padding:0 8px; padding-right:35px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
                         <span onclick="togglePass()"
                             style="position:absolute; right:10px; top:8px; cursor:pointer; opacity:0.7">👁️</span>
                     </div>
                     <button onclick="checkLogin()" title="Testar Acesso Real (RTSP)"
-                        style="background:#555; border:none; color:white; border-radius:4px; cursor:pointer; width:40px;">🔑</button>
+                        style="background:#555; border:none; color:white; border-radius:4px; cursor:pointer; width:40px; height:36px; display:flex; align-items:center; justify-content:center;">🔑</button>
                 </div>
                 <div id="login-status" style="font-size:0.8rem; height:15px; margin-top:2px;"></div>
             </div>
@@ -899,6 +915,13 @@
         function logout() {
             sessionStorage.clear();
             window.location.href = 'index.html';
+        }
+
+        async function refreshDashboard() {
+            const btn = document.getElementById('btn-refresh');
+            if (btn) btn.classList.add('rotating');
+            await loadCameras();
+            setTimeout(() => { if (btn) btn.classList.remove('rotating'); }, 800);
         }
 
         // Start
