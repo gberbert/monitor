@@ -29,6 +29,17 @@ if (!fs.existsSync(versionDir)) {
 const versionFileContent = `export const appVersion = "${newVersion}";\n`;
 fs.writeFileSync(versionFilePath, versionFileContent);
 
+// NEW: Update www/version.js for the static dashboard
+const wwwVersionPath = path.join(__dirname, 'www', 'version.js');
+const wwwVersionContent = `const appVersion = "${newVersion}"; \n` +
+    `document.addEventListener("DOMContentLoaded", () => {\n` +
+    `    const versionEl = document.getElementById('app-version-display');\n` +
+    `    if (versionEl) {\n` +
+    `        versionEl.innerText = 'v' + appVersion;\n` +
+    `    }\n` +
+    `});`;
+fs.writeFileSync(wwwVersionPath, wwwVersionContent);
+
 console.log(`✅ Versão atualizada: ${currentVersion} -> ${newVersion}`);
 
 // 5. Executar comandos GIT
