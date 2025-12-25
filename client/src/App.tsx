@@ -18,19 +18,21 @@ function App() {
   const [authForm, setAuthForm] = useState({ user: 'admin', pass: '' });
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
+  // Mobile menu state
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const handleScan = async () => {
     setIsScanning(true);
     try {
-      // Em produção, isso deveria ser o IP da máquina, não localhost, para funcionar no celular
       const response = await fetch('http://localhost:3001/api/scan');
       const data = await response.json();
 
       if (data.success) {
         setCameras(data.cameras.map((cam: any) => ({
           id: cam.id,
-          ip: cam.ip, // Geralmente vem uma URL completa, precisaríamos limpar
+          ip: cam.ip,
           name: cam.name,
-          status: 'online' // Se o scan achou, está online
+          status: 'online'
         })));
       }
     } catch (error) {
@@ -42,7 +44,6 @@ function App() {
   };
 
   const handleCameraClick = (cam: Camera) => {
-    // Abre sempre para permitir reautenticação ou correção de senha
     setSelectedCamera(cam);
     setAuthForm({ user: 'admin', pass: '' });
     setShowAuthModal(true);
@@ -66,7 +67,6 @@ function App() {
       const data = await response.json();
 
       if (data.success) {
-        // Atualiza a câmera para online e salva o streamUrl (na memória por enquanto)
         setCameras(prev => prev.map(c =>
           c.id === selectedCamera.id ? { ...c, status: 'online', name: `${c.name} (Autenticada)` } : c
         ));
@@ -108,17 +108,15 @@ function App() {
     setShowArpModal(false);
     setShowManualModal(true);
   };
-  // ======================
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAuthenticating(true);
 
-    // Tenta validar direto
     try {
       const payload = manualForm.mode === 'simple'
         ? { ip: manualForm.ip, user: manualForm.user, pass: manualForm.pass }
-        : { ip: 'custom', user: 'admin', pass: '', rtspUrl: manualForm.customUrl }; // Envia URL direta
+        : { ip: 'custom', user: 'admin', pass: '', rtspUrl: manualForm.customUrl };
 
       const response = await fetch('http://localhost:3001/api/camera/auth', {
         method: 'POST',
@@ -133,11 +131,11 @@ function App() {
           ip: manualForm.mode === 'simple' ? manualForm.ip : 'Custom URL',
           name: manualForm.mode === 'simple' ? `Câmera Manual (${manualForm.ip})` : 'Câmera Customizada',
           status: 'online',
-          rtspUrl: data.streamUrl // Salva a URL retornada pelo backend
+          rtspUrl: data.streamUrl
         };
         setCameras(prev => [...prev, newCam]);
         setShowManualModal(false);
-        setManualForm({ ip: '', user: 'admin', pass: '', mode: 'simple', customUrl: '' }); // Reset
+        setManualForm({ ip: '', user: 'admin', pass: '', mode: 'simple', customUrl: '' });
         alert("Câmera adicionada com sucesso!");
       } else {
         alert("Não foi possível conectar: " + data.message);
@@ -149,22 +147,83 @@ function App() {
     }
   };
 
-  return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', position: 'relative' }}>
+  // === USER MANAGEMENT LOGIC ===
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [userList, setUserList] = useState<any[]>([]);
 
-      {/* ARP List Modal */}
+  const openUserManagement = async () => {
+    setShowUserModal(true);
+    try {
+      const res = await fetch('http://localhost:3001/api/users/all');
+      if (res.ok) {
+        setUserList(await res.json());
+      }
+    } catch (e) {
+      alert("Erro ao carregar usuários.");
+    }
+  };
+
+  const toggleUserStatus = async (username: string, currentStatus: boolean) => {
+    try {
+      await fetch('http://localhost:3001/api/users/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, approved: !currentStatus })
+      });
+      setUserList(prev => prev.map(u =>
+        u.username === username ? { ...u, approved: !currentStatus } : u
+      ));
+    } catch (e) {
+      alert("Erro ao atualizar.");
+    }
+  };
+
+  const deleteUser = async (username: string) => {
+    if (!confirm(`Tem certeza que deseja remover ${username}?`)) return;
+    try {
+      await fetch('http://localhost:3001/api/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      setUserList(prev => prev.filter(u => u.username !== username));
+    } catch (e) {
+      alert("Erro ao deletar.");
+    }
+  };
+
+  return (
+    <div className="app-container">
+
+      {/* Mobile Header */}
+      <header className="mobile-header">
+        <div style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '1px' }}>
+          OMNI<span style={{ color: 'var(--accent-primary)' }}>VIEW</span>
+        </div>
+        <button
+          onClick={() => setMenuOpen(true)}
+          style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.5rem', cursor: 'pointer' }}
+        >
+          ☰
+        </button>
+      </header>
+
+      {/* Mobile Overlay */}
+      {menuOpen && (
+        <div
+          onClick={() => setMenuOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 15 }}
+        />
+      )}
+
+      {/* ARP Modal */}
       {showArpModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 110,
-          background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(5px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div className="glass-panel" style={{ padding: '2rem', width: '500px', borderRadius: '12px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-overlay">
+          <div className="modal-panel">
             <h3 style={{ marginBottom: '1rem' }}>Dispositivos na Rede (ARP)</h3>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
               Selecione um IP abaixo para tentar adicionar como câmera.
             </p>
-
             <div style={{ flex: 1, overflowY: 'auto', marginBottom: '1rem' }}>
               {arpDevices.length === 0 ? <p style={{ textAlign: 'center', padding: '2rem' }}>Carregando...</p> : (
                 <ul style={{ listStyle: 'none' }}>
@@ -185,7 +244,6 @@ function App() {
                 </ul>
               )}
             </div>
-
             <button onClick={() => setShowArpModal(false)} style={{ padding: '1rem', background: 'transparent', border: '1px solid var(--border-color)', color: 'white', borderRadius: '8px', cursor: 'pointer' }}>
               Fechar
             </button>
@@ -195,29 +253,23 @@ function App() {
 
       {/* Manual Add Modal */}
       {showManualModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 100,
-          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div className="glass-panel" style={{ padding: '2rem', width: '400px', borderRadius: '12px' }}>
+        <div className="modal-overlay">
+          <div className="modal-panel">
             <h3 style={{ marginBottom: '1rem' }}>Adicionar Câmera</h3>
-
             <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
               <button
                 onClick={() => setManualForm(f => ({ ...f, mode: 'simple' }))}
-                style={{ flex: 1, padding: '5px', background: manualForm.mode === 'simple' ? 'var(--accent-primary)' : 'transparent', border: '1px solid var(--border-color)', color: 'white', fontSize: '0.8rem', borderRadius: '4px' }}
+                style={{ flex: 1, padding: '8px', background: manualForm.mode === 'simple' ? 'var(--accent-primary)' : 'transparent', border: '1px solid var(--border-color)', color: 'white', fontSize: '0.8rem', borderRadius: '4px' }}
               >
                 Padrão (IP)
               </button>
               <button
                 onClick={() => setManualForm(f => ({ ...f, mode: 'advanced' }))}
-                style={{ flex: 1, padding: '5px', background: manualForm.mode === 'advanced' ? 'var(--accent-primary)' : 'transparent', border: '1px solid var(--border-color)', color: 'white', fontSize: '0.8rem', borderRadius: '4px' }}
+                style={{ flex: 1, padding: '8px', background: manualForm.mode === 'advanced' ? 'var(--accent-primary)' : 'transparent', border: '1px solid var(--border-color)', color: 'white', fontSize: '0.8rem', borderRadius: '4px' }}
               >
                 Avançado (URL)
               </button>
             </div>
-
             <form onSubmit={handleManualSubmit}>
               {manualForm.mode === 'simple' ? (
                 <>
@@ -258,7 +310,6 @@ function App() {
                   </p>
                 </div>
               )}
-
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button type="button" onClick={() => setShowManualModal(false)} style={{ flex: 1, padding: '0.75rem', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
                 <button type="submit" disabled={isAuthenticating} className="btn-primary" style={{ flex: 1 }}>
@@ -272,12 +323,8 @@ function App() {
 
       {/* Auth Modal */}
       {showAuthModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 100,
-          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div className="glass-panel" style={{ padding: '2rem', width: '400px', borderRadius: '12px' }}>
+        <div className="modal-overlay">
+          <div className="modal-panel">
             <h3 style={{ marginBottom: '1.5rem' }}>Autenticação da Câmera</h3>
             <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Para acessar {selectedCamera?.ip}, insira as credenciais RTSP.
@@ -313,8 +360,73 @@ function App() {
         </div>
       )}
 
+      {/* User Management Modal */}
+      {showUserModal && (
+        <div className="modal-overlay">
+          <div className="modal-panel">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0 }}>Gestão de Usuários</h3>
+              <button onClick={() => setShowUserModal(false)} style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer' }}>×</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                    <th style={{ textAlign: 'left', padding: '0.5rem' }}>Usuário</th>
+                    <th style={{ textAlign: 'center', padding: '0.5rem' }}>Admin</th>
+                    <th style={{ textAlign: 'center', padding: '0.5rem' }}>Acesso</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {userList.map(u => (
+                    <tr key={u.username} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '0.8rem 0.5rem' }}>{u.username}</td>
+                      <td style={{ textAlign: 'center' }}>{u.is_admin ? '👑' : ''}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        {!u.is_admin && (
+                          <button
+                            onClick={() => toggleUserStatus(u.username, u.approved)}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              border: 'none',
+                              background: u.approved ? 'var(--accent-success)' : 'var(--text-muted)',
+                              color: 'black',
+                              fontWeight: 'bold',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {u.approved ? 'ON' : 'OFF'}
+                          </button>
+                        )}
+                        {u.is_admin && <span style={{ color: 'var(--accent-success)', fontSize: '0.8rem' }}>SEMPRE ON</span>}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {!u.is_admin && (
+                          <button onClick={() => deleteUser(u.username)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>🗑️</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {userList.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '1rem' }}>Nenhum usuário encontrado.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
-      <aside className="glass-panel" style={{ width: '300px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+      <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
+        {menuOpen && (
+          <button
+            onClick={() => setMenuOpen(false)}
+            style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: 'white', fontSize: '1.5rem', cursor: 'pointer', zIndex: 50 }}
+          >
+            ×
+          </button>
+        )}
         <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
           <h1 style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '1px' }}>
             OMNI<span style={{ color: 'var(--accent-primary)' }}>VIEW</span>
@@ -324,32 +436,35 @@ function App() {
           </p>
         </div>
 
-        <div style={{ padding: '1.5rem', flex: 1 }}>
+        <div style={{ padding: '1.5rem', flex: 1, overflowY: 'auto' }}>
           <h2 style={{ fontSize: '0.9rem', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem', letterSpacing: '0.05em' }}>
             Dispositivos
           </h2>
 
-          {/* Botões de Ação */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
             <button
               className="btn-primary"
-              onClick={() => setShowManualModal(true)}
+              onClick={() => { setShowManualModal(true); setMenuOpen(false); }}
               style={{ fontSize: '0.8rem', background: 'var(--bg-surface)', border: '1px solid var(--accent-primary)' }}
             >
               + Adicionar Manualmente
             </button>
-
             <button
-              onClick={handleArpScan}
-              style={{ padding: '0.5rem', background: 'transparent', border: '1px dashed var(--text-muted)', color: 'var(--text-secondary)', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px' }}
+              onClick={() => { openUserManagement(); setMenuOpen(false); }}
+              style={{ padding: '0.8rem', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px', textAlign: 'center' }}
+            >
+              👥 Gestão de Usuários
+            </button>
+            <button
+              onClick={() => { handleArpScan(); setMenuOpen(false); }}
+              style={{ padding: '0.8rem', background: 'transparent', border: '1px dashed var(--text-muted)', color: 'var(--text-secondary)', fontSize: '0.75rem', cursor: 'pointer', borderRadius: '4px' }}
             >
               📋 Listar Todos (ARP)
             </button>
-
             <button
               onClick={handleScan}
               disabled={isScanning}
-              style={{ padding: '0.5rem', background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
+              style={{ padding: '0.8rem', background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
             >
               {isScanning ? 'Procurando...' : 'Tentar Scan Automático'}
             </button>
@@ -361,10 +476,9 @@ function App() {
                 Nenhuma câmera detectada.<br />Clique em escanear.
               </li>
             )}
-
             {cameras.map((cam, idx) => (
               <li key={idx}
-                onClick={() => handleCameraClick(cam)}
+                onClick={() => { handleCameraClick(cam); setMenuOpen(false); }}
                 style={{
                   padding: '0.8rem',
                   background: 'rgba(255,255,255,0.03)',
@@ -388,7 +502,6 @@ function App() {
             ))}
           </ul>
         </div>
-
         <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
           <div>Servidor: <span style={{ color: 'var(--accent-success)' }}>Online (Porta 3001)</span></div>
           <div style={{ marginTop: '0.3rem', opacity: 0.6 }}>v{appVersion}</div>
@@ -396,16 +509,11 @@ function App() {
       </aside>
 
       {/* Main Grid */}
-      <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
+      <main className="main-content">
         <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 300 }}>
           Visualização em <b style={{ fontWeight: 700 }}>Tempo Real</b>
         </h2>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-          gap: '1.5rem'
-        }}>
+        <div className="camera-grid">
           {cameras.map(cam => (
             <div
               key={cam.id}
@@ -467,17 +575,19 @@ function App() {
                   {cam.status === 'auth_required' ? 'Autenticação Necessária' : 'Sinal Perdido'}
                 </div>
               )}
-
-              {/* Overlay Info */}
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none',
+                background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 20%)',
+              }} />
               <div style={{
                 position: 'absolute',
                 bottom: 0,
                 left: 0,
                 right: 0,
                 padding: '1rem',
-                background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
                 display: 'flex',
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
+                pointerEvents: 'none'
               }}>
                 <span style={{ fontWeight: 600 }}>{cam.name}</span>
                 <span style={{ fontFamily: 'monospace', opacity: 0.7 }}>{new Date().toLocaleTimeString()}</span>
@@ -485,8 +595,8 @@ function App() {
             </div>
           ))}
         </div>
-      </main >
-    </div >
+      </main>
+    </div>
   )
 }
 

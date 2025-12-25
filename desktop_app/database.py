@@ -107,13 +107,28 @@ def get_pending_users():
         conn.close()
         return users
 
-def approve_user(username):
+def get_all_users():
     with db_lock:
         conn = get_connection()
         c = conn.cursor()
-        c.execute("UPDATE users SET approved = 1 WHERE username = ?", (username,))
+        c.execute("SELECT username, approved FROM users")
+        rows = c.fetchall()
+        conn.close()
+        
+    return [{"username": r[0], "approved": bool(r[1]), "is_admin": (r[0]=='admin')} for r in rows]
+
+def approve_user(username):
+    update_user_status(username, True)
+
+def update_user_status(username, approved):
+    with db_lock:
+        conn = get_connection()
+        c = conn.cursor()
+        val = 1 if approved else 0
+        c.execute("UPDATE users SET approved = ? WHERE username = ?", (val, username))
         conn.commit()
         conn.close()
+
 
 def delete_user(username):
     with db_lock:

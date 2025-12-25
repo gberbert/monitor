@@ -322,16 +322,22 @@
 
                 users.forEach(u => {
                     const statusClass = u.approved ? 'status-approved' : 'status-pending';
-                    const statusText = u.approved ? 'Aprovado' : 'Pendente ⚠️';
+                    const statusText = u.approved ? 'Aprovado' : 'Pendente / Bloqueado';
 
                     let actions = '';
-                    if (!u.approved) {
-                        actions += `<button class="btn-action btn-approve" onclick="approveWorker('${u.username}')">✅ Aprovar Acesso</button>`;
-                    }
+
                     if (u.username !== 'admin') {
-                        actions += `<button class="btn-action btn-delete" onclick="deleteWorker('${u.username}')">🗑️ Excluir / Recusar</button>`;
+                        // Toggle Button
+                        if (u.approved) {
+                            actions += `<button class="btn-action" style="background:#FF9800; color:white;" onclick="toggleWorker('${u.username}', true)">⏸ Bloquear</button>`;
+                        } else {
+                            actions += `<button class="btn-action btn-approve" onclick="toggleWorker('${u.username}', false)">✅ Liberar Acesso</button>`;
+                        }
+
+                        // Delete Button
+                        actions += `<button class="btn-action btn-delete" onclick="deleteWorker('${u.username}')">🗑️ Excluir</button>`;
                     } else {
-                        actions += `<div style="padding:10px; color:#777; font-weight:bold;">Sistema (Admin)</div>`;
+                        actions += `<div style="padding:10px; color:#777; font-weight:bold;">Administrador Supremo</div>`;
                     }
 
                     html += `
@@ -351,25 +357,50 @@
             }
         }
 
-        async function approveWorker(username) {
-            if (!confirm(`Confirma a aprovação de acesso para: ${username}?`)) return;
-            // Optimistic UI update
-            loadData();
-            await fetch('/api/users/approve', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username })
-            });
-            setTimeout(loadData, 500); // Reload real
+        async function toggleWorker(username, currentStatus) {
+            // Se currentStatus é true (aprovado), vamos bloquear (enviar false). E vice-versa.
+            const newStatus = !currentStatus;
+            const actionName = newStatus ? "Liberar acesso" : "Bloquear acesso";
+
+            if (!confirm(`${actionName} para o usuário ${username}?`)) return;
+
+            // Feedback visual imediato (Opcional, mas bom)
+
+            try {
+                const res = await fetch('/api/users/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username, approved: newStatus })
+                });
+
+                if (res.ok) {
+                    loadData(); // Recarrega a lista para confirmar
+                } else {
+                    alert("Erro ao atualizar status.");
+                }
+            } catch (e) {
+                alert("Erro de conexão.");
+            }
         }
 
         async function deleteWorker(username) {
-            if (!confirm(`Excluir permanentemente: ${username}?`)) return;
-            loadData();
-            await fetch('/api/users/delete', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username })
-            });
-            setTimeout(loadData, 500);
+            if (!confirm(`TEM CERTEZA? Isso excluirá permanentemente o usuário: ${username}.`)) return;
+
+            try {
+                const res = await fetch('/api/users/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+
+                if (res.ok) {
+                    loadData();
+                } else {
+                    alert("Erro ao excluir.");
+                }
+            } catch (e) {
+                alert("Erro de conexão.");
+            }
         }
 
         // Init

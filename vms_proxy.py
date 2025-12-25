@@ -296,6 +296,20 @@ def list_pending():
     users = database.get_pending_users()
     return jsonify(users)
 
+@app.route('/api/users/all', methods=['GET'])
+def list_all_users():
+    users = database.get_all_users()
+    return jsonify(users)
+
+@app.route('/api/users/toggle', methods=['POST'])
+def toggle_user_api():
+    data = request.json
+    username = data.get('username')
+    status = data.get('approved')
+    if username == 'admin': return jsonify({"error": "Admin is always active"}), 400
+    database.update_user_status(username, status)
+    return jsonify({"status": "ok"})
+
 @app.route('/api/users/approve', methods=['POST'])
 def approve_user_api():
     data = request.json
