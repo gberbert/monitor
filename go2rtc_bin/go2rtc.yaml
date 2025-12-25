@@ -18,22 +18,20 @@ webrtc:
 streams:
   piscina_src: rtsp://berbert:viguera2001@192.168.3.14:554/cam/realmonitor?channel=1&subtype=0
   piscina: ffmpeg:piscina_src#video=h264#vf=scale=1280:720
-  piscina_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.14:554/cam/realmonitor?channel=1&subtype=0" -vf "scale=1024:576" -c:v mjpeg -an -f mjpeg -
+  piscina_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.14:554/cam/realmonitor?channel=1&subtype=0" -vf "scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
 
   rua_src: rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0
   rua: ffmpeg:rua_src#video=h264#vf=crop=in_w:in_h/2:0:0,scale=1280:720
-  rua_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0" -vf "crop=in_w:in_h/2:0:0,scale=1024:576" -c:v mjpeg -an -f mjpeg -
+  rua_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0" -vf "crop=in_w:in_h/2:0:0,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
 
   varanda_src: rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1
   varanda: ffmpeg:varanda_src#video=h264#vf=crop=in_w:in_h/2:0:0,scale=1280:720
-  varanda_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1" -vf "crop=in_w:in_h/2:0:0,scale=1024:576" -c:v mjpeg -an -f mjpeg -
+  varanda_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1" -vf "crop=in_w:in_h/2:0:0,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
 
   rua_base_src: rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0
   rua_base: ffmpeg:rua_base_src#video=h264#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
-  rua_base_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0" -vf "crop=in_w:in_h/2:0:in_h/2,scale=1024:576" -c:v mjpeg -an -f mjpeg -
+  rua_base_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0" -vf "crop=in_w:in_h/2:0:in_h/2,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
 
   varanda_base_src: rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1
   varanda_base: ffmpeg:varanda_base_src#video=h264#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
-  varanda_base_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1" -vf "crop=in_w:in_h/2:0:in_h/2,scale=1024:576" -c:v mjpeg -an -f mjpeg -
-
-
+  varanda_base_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1" -vf "crop=in_w:in_h/2:0:in_h/2,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -

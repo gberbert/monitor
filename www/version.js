@@ -1,4 +1,4 @@
-const appVersion = "1.0.3"; 
+const appVersion = "1.0.4"; 
 document.addEventListener("DOMContentLoaded", () => {
     const versionEl = document.getElementById('app-version-display');
     if (versionEl) {
