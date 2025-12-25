@@ -535,6 +535,20 @@
                 <div id="login-status" style="font-size:0.8rem; height:15px; margin-top:2px;"></div>
             </div>
 
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Modo de Exibição
+                    (Corte)</label>
+                <select id="editCrop"
+                    style="width:100%; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+                    <option value="0">Normal (Sem corte)</option>
+                    <option value="1">Metade de Cima (50% Top)</option>
+                    <option value="2">Metade de Baixo (50% Bottom)</option>
+                    <option value="3">Terço Superior (Top 33%)</option>
+                    <option value="4">Terço Médio (Mid 33%)</option>
+                    <option value="5">Terço Inferior (Bot 33%)</option>
+                </select>
+            </div>
+
             <div class="modal-buttons" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
                 <button class="btn-cancel" onclick="closeConfig()"
                     style="padding:8px 15px; background:transparent; border:1px solid #555; color:#ddd; cursor:pointer; border-radius:4px;">Cancelar</button>
@@ -652,7 +666,7 @@
                             ${cam.name} 
                             <span id="status-${streamKey || 'off'}" class="status-dot" style="float:right; color:${isOnline ? '#26a69a' : '#cf6679'}">●</span>
                         </div>
-                        <div class="config-btn" onclick="openConfig('${cam.mac}', '${cam.name}', '${cam.ip || ''}', '${cam.username || ''}', '${cam.password || ''}')">⚙️</div>
+                        <div class="config-btn" onclick="openConfig('${cam.mac}', '${cam.name}', '${cam.ip || ''}', '${cam.username || ''}', '${cam.password || ''}', ${cam.crop_mode || 0})">⚙️</div>
                     </div>
                 `;
                 grid.appendChild(div);
@@ -690,7 +704,7 @@
         // function startReload(streamKey, baseUrl) { ... } (REMOVED logic to prevent loop)
 
         // --- FUNCÕES DO MÓDAL DE CONFIGURAÇÃO ---
-        function openConfig(mac, name, ip, user, pass) {
+        function openConfig(mac, name, ip, user, pass, cropMode) {
             window.event.stopPropagation();
 
             // MODO EDIÇÃO
@@ -705,9 +719,12 @@
             document.getElementById('editIp').value = ip;
             document.getElementById('editUser').value = user;
             document.getElementById('editPass').value = pass;
+            document.getElementById('editCrop').value = cropMode || 0;
 
             const stat = document.getElementById('ip-status');
             if (stat) stat.innerText = '';
+            const statLogin = document.getElementById('login-status');
+            if (statLogin) statLogin.innerText = '';
 
             document.getElementById('modalConfig').style.display = 'flex';
         }
@@ -726,9 +743,12 @@
             document.getElementById('editIp').value = '';
             document.getElementById('editUser').value = 'admin';
             document.getElementById('editPass').value = '';
+            document.getElementById('editCrop').value = '0';
 
             const stat = document.getElementById('ip-status');
             if (stat) stat.innerText = '';
+            const statLogin = document.getElementById('login-status');
+            if (statLogin) statLogin.innerText = '';
 
             document.getElementById('modalConfig').style.display = 'flex';
         }
@@ -743,7 +763,8 @@
                 name: document.getElementById('editName').value,
                 ip: document.getElementById('editIp').value,
                 username: document.getElementById('editUser').value,
-                password: document.getElementById('editPass').value
+                password: document.getElementById('editPass').value,
+                crop_mode: parseInt(document.getElementById('editCrop').value)
             };
 
             try {

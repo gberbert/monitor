@@ -35,77 +35,130 @@ def safe_name(name):
     return s.strip('_')
 
 def sync_config():
-    print(f"--- SYNC CAMERAS (DB -> WEB) ---")
+    print(f"--- SYNC CAMERAS (DB -> WEB) [V2: DEDUPE & CROP] ---")
     cameras = get_db_cameras()
     print(f"Found {len(cameras)} cameras in DB.")
     
     yaml_content = []
-    yaml_content.append("log:")
-    yaml_content.append("  level: info")
-    yaml_content.append("  api: debug")
-    yaml_content.append("  rtsp: warn")
-    yaml_content.append("  streams: error")
-    yaml_content.append("")
-    yaml_content.append("ffmpeg:")
-    yaml_content.append('  bin: "C:/antigravity_www/ffmpeg.exe"')
-    yaml_content.append("")
-    yaml_content.append("api:")
-    yaml_content.append('  listen: ":1984"')
-    yaml_content.append('  origin: "*"')
-    yaml_content.append('  static: "www"')
-    yaml_content.append("")
-    yaml_content.append("webrtc:")
-    yaml_content.append('  listen: ":8555"')
-    yaml_content.append("")
-    yaml_content.append("streams:")
+    # Header
+    yaml_content.extend([
+        "log:",
+        "  level: info",
+        "  api: debug",
+        "  rtsp: warn",
+        "  streams: error",
+        "",
+        "ffmpeg:",
+        '  bin: "C:/antigravity_www/ffmpeg.exe"',
+        "",
+        "api:",
+        '  listen: ":1984"',
+        '  origin: "*"',
+        '  static: "www"',
+        "",
+        "rtsp:",
+        '  listen: ":8554"',
+        "",
+        "webrtc:",
+        '  listen: ":8555"',
+        "",
+        "streams:"
+    ])
 
-    # Process Cameras
+    # 1. Deduplicate Sources (URL -> safe_id)
+    # Map: source_url -> source_id
+    sources = {}
+    
+    # First Pass: Identify unique physical sources
+    for cam in cameras:
+        url = cam['stream_url']
+        if not url: continue
+        url = url.strip() # Normalize
+        
+        # Use simple hash or cleaned first name as ID basis?
+        # Better: use MD5 of URL to be 100% sure, or just the first cam's name that uses it.
+        # Let's use MD5 to avoid name collisions.
+        import hashlib
+        url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
+        
+        if url not in sources:
+            sources[url] = f"src_{url_hash}"
+
+    # Write Physical Sources
+    for url, src_id in sources.items():
+        # Mask password in logs
+        safe_url = re.sub(r':(.*?)\@', ':***@', url)
+        print(f" -> Source Defined: {src_id} ({safe_url})")
+        yaml_content.append(f"  {src_id}: {url}")
+
+    yaml_content.append("")
+
+    # 2. Define Logical Channels (Consuming from Sources)
     for cam in cameras:
         raw_name = cam['name']
         original_url = cam['stream_url']
-        # Read crop mode independently because row factory might vary
-        crop_mode = 0
+        
+        # Safe handling of crop_mode
         try: crop_mode = int(cam['crop_mode'])
-        except: pass
-        
-        if not original_url:
-            print(f"[SKIP] Camera '{raw_name}' has no URL.")
-            continue
+        except: crop_mode = 0
             
-        # Create IDs
+        if not original_url: continue
+            
         clean_id = safe_name(raw_name)
-        src_id = f"{clean_id}_src"
         mjpeg_id = f"{clean_id}_mjpeg"
+        src_id = sources[original_url] # Get the shared source ID
         
-        print(f" -> Adding: {raw_name} (Crop: {crop_mode})")
+        print(f" -> Channel: {clean_id} (Src: {src_id}, Crop: {crop_mode})")
         
-        # 1. Source Stream (RTSP raw)
-        yaml_content.append(f"  {src_id}: {original_url}")
+        # Determine Filter String based on Crop
+        # H264 Target: 1280x720
+        # MJPEG Target: 640x360
         
-        if crop_mode == 1:
-            vf_filter = "crop=in_w:in_h/2:0:0,scale=1024:576"
-        elif crop_mode == 2:
-            vf_filter = "crop=in_w:in_h/2:0:in_h/2,scale=1024:576"
+        # Filters
+        vf = ""
+        if crop_mode == 0: # Normal
+            vf_h264  = "scale=1280:720"
+            vf_mjpeg = "scale=640:360"
+        elif crop_mode == 1: # 50% Top
+            vf_h264  = "crop=in_w:in_h/2:0:0,scale=1280:720"
+            vf_mjpeg = "crop=in_w:in_h/2:0:0,scale=640:360"
+        elif crop_mode == 2: # 50% Bottom
+            vf_h264  = "crop=in_w:in_h/2:0:in_h/2,scale=1280:720"
+            vf_mjpeg = "crop=in_w:in_h/2:0:in_h/2,scale=640:360"
+        elif crop_mode == 3: # 33% Top
+            vf_h264  = "crop=in_w:in_h/3:0:0,scale=1280:720"
+            vf_mjpeg = "crop=in_w:in_h/3:0:0,scale=640:360"
+        elif crop_mode == 4: # 33% Mid
+            vf_h264  = "crop=in_w:in_h/3:0:in_h/3,scale=1280:720"
+            vf_mjpeg = "crop=in_w:in_h/3:0:in_h/3,scale=640:360"
+        elif crop_mode == 5: # 33% Bot
+            vf_h264  = "crop=in_w:in_h/3:0:2*in_h/3,scale=1280:720"
+            vf_mjpeg = "crop=in_w:in_h/3:0:2*in_h/3,scale=640:360"
         else:
-            vf_filter = "scale=1024:576"
+            vf_h264  = "scale=1280:720"
+            vf_mjpeg = "scale=640:360"
+
+        # MAIN STREAM (H264)
+        # Consumes from LOCALHOST rtsp (reusing the source connection)
+        # This keeps the logic consistent: Everything consumes the 'src' stream.
+        # BUT: For 'ffmpeg:' source in Go2RTC, it's better to reference the ID directly if possible
+        # or use the rtsp loopback. RTSP loopback is more robust for 'exec' commands.
+        # For 'ffmpeg:' modules, we can refer to the stream name directly? 
+        # Actually, Go2RTC allows `ffmpeg:src_stream#...` syntax.
         
-        # 2. Main Stream (H.264 - WebRTC) - Keep standard magic, it usually works for H264
-        # Apply crop BEFORE scaling if needed
-        h264_vf = vf_filter.replace("1024:576", "1280:720") # Adjust scale for HD
-        transcode_cmd = f"ffmpeg:{src_id}#video=h264#vf={h264_vf}"
+        # H264 Stream Entry
+        transcode_cmd = f"ffmpeg:{src_id}#video=h264#vf={vf_h264}"
         yaml_content.append(f"  {clean_id}: {transcode_cmd}")
         
-        # 3. Fluid MJPEG Stream (Exec Mode - Manual Control)
-        # Using 'exec:' guarantees our filters run exactly as written without Go2RTC changing them
-        # "-an" = No Audio (MJPEG doesn't carry audio well usually alongside video in one pipe here)
+        # MJPEG Stream Entry (EXEC FFMPEG)
+        # MUST connect to localhost RTSP to reuse connection.
         ffmpeg_bin = "C:/antigravity_www/ffmpeg.exe"
-        # Hide credentials in logs slightly
-        safe_url = original_url.replace("&", "\&") 
+        if not os.path.exists(ffmpeg_bin): ffmpeg_bin = "ffmpeg"
         
-        mjpeg_cmd = f'exec:{ffmpeg_bin} -hide_banner -rtsp_transport tcp -i "{original_url}" -vf "{vf_filter}" -c:v mjpeg -an -f mjpeg -'
+        # Low FPS for mobile
+        mjpeg_cmd = f'exec:{ffmpeg_bin} -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/{src_id}" -vf "{vf_mjpeg}" -r 8 -c:v mjpeg -an -f mjpeg -'
         
         yaml_content.append(f"  {mjpeg_id}: {mjpeg_cmd}")
-        
         yaml_content.append("")
 
     # Write Config
@@ -113,7 +166,6 @@ def sync_config():
         with open(GO2RTC_CONFIG_PATH, 'w', encoding='utf-8') as f:
             f.write("\n".join(yaml_content))
         print(f"\n[SUCCESS] Wrote configuration to {GO2RTC_CONFIG_PATH}")
-        print("Please restart Go2RTC to apply changes.")
     except Exception as e:
         print(f"[ERROR] Failed to write config: {e}")
 

@@ -169,6 +169,11 @@ def remove_camera():
         mac = data.get('mac')
         if mac: 
             database.delete_camera(mac)
+            # Trigger Config Sync
+            import sync_cameras_to_web
+            try:
+                sync_cameras_to_web.sync_config()
+            except: pass
             return jsonify({"status": "ok"})
         return jsonify({"error": "No MAC provided"}), 400
     except Exception as e:
@@ -185,6 +190,12 @@ def save_camera():
             import uuid
             mac = "MANUAL-" + str(uuid.uuid4())[:8].upper()
             
+        # AUTO-GENERATE URL IF MISSING (Intelbras Standard)
+        stream_url = data.get('url', '')
+        if not stream_url and data.get('ip') and data.get('username'):
+            # Default to channel 1, subtype 0 (Main Stream)
+            stream_url = f"rtsp://{data.get('username')}:{data.get('password')}@{data.get('ip')}:554/cam/realmonitor?channel=1&subtype=0"
+
         # Call safe DB upsert
         database.upsert_camera(
             mac,
@@ -192,9 +203,16 @@ def save_camera():
             data.get('ip'),
             data.get('username'),
             data.get('password'),
-            data.get('url', ''),
+            stream_url,
             data.get('crop_mode', 0)
         )
+        
+        # Trigger Config Sync
+        import sync_cameras_to_web
+        try:
+            sync_cameras_to_web.sync_config()
+        except: pass
+        
         return jsonify({"status": "ok", "mac": mac})
     except Exception as e:
         print(f"Save Error: {e}")
