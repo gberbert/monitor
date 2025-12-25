@@ -15,6 +15,7 @@ pip install flask requests >nul 2>&1
 echo [1/3] Iniciando Go2RTC (Video)...
 :: Usamos modo config limpo
 cd /d "%~dp0go2rtc_bin"
+set PATH=%PATH%;%~dp0go2rtc_bin
 start /MIN "Go2RTC Backend" go2rtc.exe -config go2rtc.yaml
 
 :: Aguardar Go2RTC
@@ -39,6 +40,6 @@ echo   O Proxy esta unindo o Site (C:\antigravity_www)
 echo   com o Video (Go2RTC :1984) numa coisa so (:5000).
 echo.
 echo   ACESSE EM QUALQUER LUGAR:
-echo   >> https://cams.osberberts.com
+echo   ^>^> https://cams.osberberts.com
 echo ========================================================
-pause
+timeout /t 5

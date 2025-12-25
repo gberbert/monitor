@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { appVersion } from './version';
 import './index.css';
 
 interface Camera {
@@ -389,7 +390,8 @@ function App() {
         </div>
 
         <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-          Servidor: <span style={{ color: 'var(--accent-success)' }}>Online (Porta 3001)</span>
+          <div>Servidor: <span style={{ color: 'var(--accent-success)' }}>Online (Porta 3001)</span></div>
+          <div style={{ marginTop: '0.3rem', opacity: 0.6 }}>v{appVersion}</div>
         </div>
       </aside>
 

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador - Antigravity VMS</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <style>
+        body {
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            position: absolute;
+            top: 0;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .back-btn {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            background: #333;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #status-log {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="top-bar">
+        <a href="dashboard.html" class="back-btn">⬅ Voltar</a>
+        <button onclick="document.getElementById('mjpeg-stream').requestFullscreen()" class="back-btn">⛶
+            Fullscreen</button>
+    </div>
+
+    <!-- MP4/MSE Player (High Performance TCP) -->
+    <div style="display: flex; justify-content: center; align-items: center; height: 100%; background: #000;">
+        <video id="main-video" autoplay playsinline controls muted
+            style="width: 100%; height: 100%; object-fit: contain;">
+            Seu navegador não suporta vídeo HTML5.
+        </video>
+    </div>
+
+    <div id="status-log">Modo: Carregando via TCP/MP4...</div>
+
+    <script>
+        // Auth Check
+        if (sessionStorage.getItem('vms_auth') !== 'true') {
+            window.location.href = 'index.html';
+        }
+
+        const video = document.getElementById('main-video');
+        const statusLog = document.getElementById('status-log');
+        const urlParams = new URLSearchParams(window.location.search);
+        let STREAM_ID = urlParams.get('src');
+
+        if (!STREAM_ID) {
+            statusLog.innerText = "Erro: Nenhuma câmera selecionada.";
+            statusLog.style.color = "red";
+        } else {
+            statusLog.innerText = `Conectando a: ${STREAM_ID} (Modo Otimizado)...`;
+
+            // Usa o Proxy para buscar o stream MP4 (fMP4) do Go2RTC
+            // Adicionado t=Date.now() para evitar cache
+            const streamUrl = `/api/stream.mp4?src=${STREAM_ID}&t=${Date.now()}`;
+            console.log("Player connecting to:", streamUrl);
+
+            video.src = streamUrl;
+
+            video.onloadeddata = () => {
+                statusLog.innerText = "ONLINE (TCP/H.264)";
+                statusLog.style.color = "#0f0";
+                // Tenta remover o Mute se o navegador deixar, senao usuario clica
+                // video.muted = false; 
+            };
+
+            video.onerror = () => {
+                console.warn("Video load failed:", video.error);
+                statusLog.innerText = "Erro Recarregando em 3s...";
+                statusLog.style.color = "orange";
+
+                // Retry logic simples
+                setTimeout(() => {
+                    video.src = `/api/stream.mp4?src=${STREAM_ID}&retry=${Date.now()}`;
+                }, 3000);
+            };
+        }
+
+        // Snapshot fallback removido para evitar loop de erro.
+        // Se o stream falhar, é melhor mostrar Offline do que spammar o servidor.
+
+        if (navigator.serviceWorker) {
+            navigator.serviceWorker.register('/sw.js');
+        }
+    </script>
+</body>
+
+</html>
