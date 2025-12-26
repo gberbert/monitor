@@ -12,7 +12,7 @@ taskkill /F /IM ffmpeg.exe /T >nul 2>&1
 taskkill /F /IM node.exe /T >nul 2>&1
 
 echo Aguardando 10 segundos para liberação total (Cloudflare)...
-timeout /t 10
+ping -n 11 127.0.0.1 >nul
 
 echo.
 echo ==================================================

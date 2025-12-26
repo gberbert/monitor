@@ -5,7 +5,7 @@ import sys
 
 # Config
 DB_FILE = os.path.join('desktop_app', 'cameras.db')
-ffmpeg_path = "ffmpeg"
+ffmpeg_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'go2rtc_bin', 'ffmpeg.exe'))
 
 def get_cameras():
     conn = sqlite3.connect(DB_FILE)

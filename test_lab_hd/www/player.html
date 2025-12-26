@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador - Antigravity VMS</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <style>
+        body {
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            position: absolute;
+            top: 0;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .back-btn {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            background: #333;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #status-log {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="top-bar">
+        <a href="dashboard.html" class="back-btn">⬅ Voltar</a>
+        <button onclick="document.getElementById('mjpeg-stream').requestFullscreen()" class="back-btn">⛶
+            Fullscreen</button>
+    </div>
+
+    <!-- MJPEG Player (Robust over HTTP Tunnels) -->
+    <div style="display: flex; justify-content: center; align-items: center; height: 100%; background: #000;">
+        <img id="mjpeg-stream" style="max-width: 100%; max-height: 100%; object-fit: contain;"
+            alt="Carregando Video...">
+    </div>
+
+    <div id="status-log">Modo: Carregando...</div>
+
+    <script>
+        // Auth Check
+        if (sessionStorage.getItem('vms_auth') !== 'true') {
+            window.location.href = 'index.html';
+        }
+
+        const img = document.getElementById('mjpeg-stream');
+        const statusLog = document.getElementById('status-log');
+        const urlParams = new URLSearchParams(window.location.search);
+        let STREAM_ID = urlParams.get('src');
+
+        if (navigator.serviceWorker) {
+            // Desativado no Player para evitar conflito de cache com stream infinito
+            // navigator.serviceWorker.register('/sw.js');
+        }
+
+        // Delay stream load to prevent "infinite loading" state in some browsers
+        setTimeout(() => {
+            if (!STREAM_ID) {
+                statusLog.innerText = "Erro: Nenhuma câmera selecionada.";
+                statusLog.style.color = "red";
+            } else {
+                statusLog.innerText = `Conectando a: ${STREAM_ID}...`;
+
+                const streamUrl = `/api/stream.mjpeg?src=${encodeURIComponent(STREAM_ID)}`;
+                console.log("Player connecting to:", streamUrl);
+                img.src = streamUrl;
+
+                img.onload = () => {
+                    statusLog.innerText = "Status: ONLINE (Vídeo Fluido)";
+                    statusLog.style.color = "#0f0";
+                };
+
+                img.onerror = () => {
+                    console.warn("Stream load failed.");
+                    statusLog.innerText = "OFFLINE - Falha no Vídeo";
+                    statusLog.style.color = "red";
+                    img.style.display = 'none';
+                    if (!document.getElementById('err-msg')) {
+                        const msg = document.createElement('div');
+                        msg.id = 'err-msg';
+                        msg.innerHTML = '<div style="font-size:3rem">🔌</div><div>OFFLINE</div>';
+                        msg.style.position = 'absolute';
+                        msg.style.top = '50%';
+                        msg.style.left = '50%';
+                        msg.style.transform = 'translate(-50%, -50%)';
+                        msg.style.textAlign = 'center';
+                        msg.style.color = '#555';
+                        document.body.appendChild(msg);
+                    }
+                };
+            }
+        }, 500);
+    </script>
+</body>
+
+</html>

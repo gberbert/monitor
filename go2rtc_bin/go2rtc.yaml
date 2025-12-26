@@ -5,7 +5,7 @@ log:
   streams: error
 
 ffmpeg:
-  bin: "C:/antigravity_www/ffmpeg.exe"
+  bin: "C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe"
 
 api:
   listen: ":1984"
@@ -38,9 +38,6 @@ streams:
 
   varanda_base: ffmpeg:src_c91a292c#video=h264#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
   varanda_base_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_c91a292c" -vf "crop=in_w:in_h/2:0:in_h/2,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
-
-  rua_2: ffmpeg:src_12d71240#video=h264#vf=crop=in_w:in_h/3:0:2*in_h/3,scale=1280:720
-  rua_2_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_12d71240" -vf "crop=in_w:in_h/3:0:2*in_h/3,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
 
   portao: ffmpeg:src_14ad25e1#video=h264#vf=scale=1280:720
   portao_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_14ad25e1" -vf "scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -

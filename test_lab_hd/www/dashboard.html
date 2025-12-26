@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OS BERBERTS</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e1e1e">
+    <style>
+        :root {
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --drawer: #252525;
+            --text: #e0e0e0;
+            --accent: #26a69a;
+            /* Teal Sóbrio */
+            --danger: #cf6679;
+            --header-h: 60px;
+            --drawer-w: 280px;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        /* --- HEADER --- */
+        .app-header {
+            height: var(--header-h);
+            background: var(--surface);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            box-sizing: border-box;
+            border-bottom: 1px solid #333;
+        }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            margin-right: 15px;
+        }
+
+        .app-title {
+            font-size: 1.35rem;
+            font-weight: 500;
+            color: #ddd;
+            flex-grow: 0;
+            margin-left: auto;
+            letter-spacing: 1px;
+        }
+
+        #app-clock {
+            font-size: 1.35rem;
+            margin-left: 15px;
+            font-weight: 500;
+            color: #fff;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 600px) {
+            #app-clock {
+                font-size: 0.75rem !important;
+                margin-left: 5px !important;
+            }
+
+            .app-title {
+                font-size: 0.75rem !important;
+                margin-left: auto !important;
+            }
+
+            .menu-btn {
+                margin-right: 5px;
+            }
+
+            .app-header {
+                padding: 0 10px;
+            }
+        }
+
+
+        /* --- DRAWER --- */
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 150;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .drawer-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .drawer {
+            position: fixed;
+            top: 0;
+            left: calc(-1 * var(--drawer-w));
+            width: var(--drawer-w);
+            height: 100%;
+            background: var(--drawer);
+            z-index: 160;
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .drawer.open {
+            transform: translateX(var(--drawer-w));
+        }
+
+        .drawer-header {
+            height: 140px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: #444;
+            color: #aaa;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .drawer-content {
+            flex: 1;
+            padding: 10px 0;
+            overflow-y: auto;
+        }
+
+        .menu-item {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            color: #ccc;
+            text-decoration: none;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+        }
+
+        .menu-item.active {
+            background: rgba(38, 166, 154, 0.1);
+            border-left-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .menu-icon {
+            margin-right: 15px;
+            width: 20px;
+            text-align: center;
+            opacity: 0.7;
+        }
+
+        /* Custom Buttons inside Menu */
+        .btn-access {
+            background: #333;
+            margin: 10px 20px;
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+            color: var(--accent);
+            border: 1px solid #444;
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-access:hover {
+            background: #3a3a3a;
+        }
+
+        /* Badge for Pending Users */
+        .badge {
+            background: var(--danger);
+            color: white;
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            margin-left: auto;
+        }
+
+        /* --- CONTENT --- */
+        .main-content {
+            margin-top: var(--header-h);
+            padding: 15px;
+            min-height: calc(100vh - var(--header-h));
+        }
+
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .camera-card {
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+            border: 1px solid #333;
+        }
+
+        .camera-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* REFACTORED OVERLAY FOR STATUS & CONFIG */
+        .camera-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+            padding: 8px 12px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 2;
+            /* Garante que fique acima da imagem/video */
+        }
+
+        .camera-title {
+            /* Removido position absolute antigo */
+            font-size: 13px;
+            color: #ddd;
+            flex-grow: 1;
+        }
+
+        .config-btn {
+            cursor: pointer;
+            font-size: 1.2rem;
+            opacity: 0.6;
+            transition: opacity 0.2s, transform 0.2s;
+            padding: 5px;
+            z-index: 10;
+            /* Garante clique */
+        }
+
+        .config-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+            color: var(--accent);
+        }
+
+        /* --- MODAL --- */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal {
+            background: var(--surface);
+            width: 90%;
+            max-width: 450px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+            scrollbar-width: thin;
+            /* Firefox */
+            scrollbar-color: var(--accent) var(--surface);
+        }
+
+        /* Webkit scrollbar for modal */
+        .modal::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .modal::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .modal::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 4px;
+        }
+
+        .modal h3 {
+            margin-top: 0;
+            color: #fff;
+            font-weight: 400;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid #555;
+            color: #aaa;
+        }
+
+        .btn-confirm {
+            background: var(--accent);
+            color: white;
+        }
+
+        .user-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .btn-approve {
+            background: var(--accent);
+            padding: 5px 10px;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 600px) {
+            .camera-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .app-title {
+                text-align: center;
+                margin-right: 40px;
+            }
+        }
+
+        /* REFRESH ANIMATION */
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .rotating {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="app-header">
+        <div style="display:flex; align-items:center">
+            <button class="menu-btn" onclick="toggleDrawer()">☰</button>
+            <div id="app-clock">--:--:--</div>
+            <button id="btn-refresh" onclick="refreshDashboard()" title="Atualizar Câmeras"
+                style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer; margin-left:15px; padding:0; display:flex; align-items:center;">🔄</button>
+        </div>
+        <div class="app-title">
+            <span style="color:#fff">OS</span>
+            <span style="color:#29b6f6">BERBERT</span><span style="color:#ff4081">S</span>
+        </div>
+    </header>
+
+    <!-- DRAWER -->
+    <div class="drawer-overlay" id="overlay" onclick="toggleDrawer()"></div>
+    <div class="drawer" id="drawer">
+        <div class="drawer-header">
+            <div class="user-avatar">👤</div>
+            <div style="font-weight:600; color:#fff" id="user-display">Usuário</div>
+            <div style="font-size:0.8rem; opacity:0.5">Gestão de Vídeo</div>
+        </div>
+        <div class="drawer-content">
+            <a href="#" class="menu-item active" onclick="toggleDrawer()">
+                <span class="menu-icon">📷</span> Monitoramento
+            </a>
+
+            <div class="menu-item" onclick="openNewCamera()">
+                <span class="menu-icon">➕</span> Nova Câmera
+            </div>
+
+            <!-- Dynamic Button (Local/Online) -->
+            <div id="btn-access-container"></div>
+
+            <div class="menu-item" id="btn-install" style="display:none">
+                <span class="menu-icon">📲</span> Instalar App
+            </div>
+
+            <hr style="border:0; border-top:1px solid #333; margin:10px 0">
+
+            <!-- Admin Area -->
+            <div id="admin-menu" style="display:none">
+                <a href="users.html" class="menu-item">
+                    <span class="menu-icon">👥</span> Acessos
+                    <span id="badge-pending" class="badge" style="display:none">0</span>
+                </a>
+                <a href="scan.html" class="menu-item" style="color: #4db6ac;">
+                    <span class="menu-icon">📡</span> Scanner de Rede
+                </a>
+            </div>
+
+            <div class="menu-item" onclick="openPassModal()">
+                <span class="menu-icon">🔒</span> Trocar Senha
+            </div>
+
+            <div class="menu-item" onclick="logout()">
+                <span class="menu-icon">🚪</span> Sair
+            </div>
+
+            <!-- Version Display -->
+            <div id="app-version-display"
+                style="padding: 1rem; border-top: 1px solid #333; font-size: 0.8rem; color: #666; text-align: center;">
+                v...
+            </div>
+        </div>
+    </div>
+    <script src="version.js"></script>
+
+    <!-- MAIN -->
+    <div class="main-content">
+        <div id="grid" class="camera-grid">
+            <div style="text-align:center; padding:50px; opacity:0.6">Carregando...</div>
+        </div>
+    </div>
+
+    <!-- MODAL: CHANGE PASSWORD -->
+    <div id="modal-pass" class="modal-overlay">
+        <div class="modal">
+            <h3>Nova Senha</h3>
+            <input type="password" id="new-pass" placeholder="Digite a nova senha">
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModals()">Cancelar</button>
+                <button class="btn-confirm" onclick="doChangePass()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: APPROVAL -->
+    <div id="modal-approve" class="modal-overlay">
+        <div class="modal">
+            <h3>Aprovação Pendente</h3>
+            <div id="pending-list" style="max-height: 200px; overflow-y: auto; margin-bottom:10px;">
+                Carregando...
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModals()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OS BERBERTS CONFIG MODAL -->
+    <div id="modalConfig" class="modal-overlay" style="display:none; align-items:center; justify-content:center;">
+        <div class="modal" style="min-width:300px;">
+            <h3 id="configTitle" style="margin-top:0">⚙️ Configurar Câmera</h3>
+            <input type="hidden" id="editMac">
+
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Nome</label>
+                <input type="text" id="editName"
+                    style="width:100%; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+            </div>
+
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">IP / Host</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="editIp"
+                        style="flex-grow:1; height:36px; padding:0 8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+                    <button onclick="checkIP()" title="Testar Conexão (Ping)"
+                        style="background:#444; border:none; color:white; border-radius:4px; cursor:pointer; width:40px; height:36px; display:flex; align-items:center; justify-content:center;">📶</button>
+                </div>
+                <div id="ip-status" style="font-size:0.8rem; height:15px; margin-top:2px;"></div>
+            </div>
+
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Usuário</label>
+                <input type="text" id="editUser"
+                    style="width:100%; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+            </div>
+
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Senha</label>
+                <div style="position:relative; display:flex; gap:5px;">
+                    <div style="position:relative; flex-grow:1">
+                        <input type="password" id="editPass"
+                            style="width:100%; height:36px; padding:0 8px; padding-right:35px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+                        <span onclick="togglePass()"
+                            style="position:absolute; right:10px; top:8px; cursor:pointer; opacity:0.7">👁️</span>
+                    </div>
+                    <button onclick="checkLogin()" title="Testar Acesso Real (RTSP)"
+                        style="background:#555; border:none; color:white; border-radius:4px; cursor:pointer; width:40px; height:36px; display:flex; align-items:center; justify-content:center;">🔑</button>
+                </div>
+                <div id="login-status" style="font-size:0.8rem; height:15px; margin-top:2px;"></div>
+            </div>
+
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Stream URL (RTSP
+                    Manual)</label>
+
+                <!-- Main Input -->
+                <input type="text" id="editUrl" placeholder="rtsp://..."
+                    style="width:100%; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px; margin-bottom:5px">
+
+                <!-- Suggestions Dropdown -->
+                <select id="urlSuggestions" onchange="document.getElementById('editUrl').value = this.value"
+                    style="width:100%; padding:6px; background:#333; border:1px solid #555; color:#ccc; border-radius:4px; font-size:0.85rem">
+                    <option value="">-- Selecione uma sugestão ou digite acima --</option>
+                    <!-- Populated via JS -->
+                </select>
+
+                <div style="font-size:0.75rem; color:#666; margin-top:2px;">Se vazio, será gerado via autodescoberta.
+                </div>
+            </div>
+
+            <!-- TIMEOUT FIELD -->
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Timeout de Conexão
+                    (Segundos)</label>
+                <input type="number" id="editTimeout" value="25" min="5" max="60"
+                    style="width:100px; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+            </div>
+
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Modo de Exibição
+                    (Corte)</label>
+                <select id="editCrop"
+                    style="width:100%; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+                    <option value="0">Normal (Sem corte)</option>
+                    <option value="1">Metade de Cima (50% Top)</option>
+                    <option value="2">Metade de Baixo (50% Bottom)</option>
+                    <option value="3">Terço Superior (Top 33%)</option>
+                    <option value="4">Terço Médio (Mid 33%)</option>
+                    <option value="5">Terço Inferior (Bot 33%)</option>
+                </select>
+            </div>
+
+            <div class="modal-buttons" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn-cancel" onclick="closeConfig()"
+                    style="padding:8px 15px; background:transparent; border:1px solid #555; color:#ddd; cursor:pointer; border-radius:4px;">Cancelar</button>
+                <button id="btnDelete" class="btn-primary" onclick="deleteCamera()"
+                    style="background:#cf6679; border:none; color:white; padding:8px 15px; cursor:pointer; border-radius:4px; margin-right:auto;">Excluir</button>
+                <button class="btn-primary" onclick="saveConfig()"
+                    style="background:#26a69a; border:none; color:white; padding:8px 15px; cursor:pointer; border-radius:4px;">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === AUTH & INIT ===
+        const user = sessionStorage.getItem('vms_user');
+        if (!sessionStorage.getItem('vms_auth')) window.location.href = 'index.html';
+        document.getElementById('user-display').innerText = user || 'Usuário';
+
+        // Admin Check
+        if (user === 'admin') {
+            document.getElementById('admin-menu').style.display = 'block';
+            checkPendingUsers();
+        }
+
+        // === UI LOGIC: ONLINE vs LOCAL ===
+        // Se hostname for localhost/IP, mostra botao Online.
+        // Se hostname for .com, mostra botao Offline (Local).
+        fetch('/api/info').then(r => r.json()).then(info => {
+            const isLocal = ['localhost', '127.0.0.1'].some(h => window.location.hostname.includes(h)) || window.location.hostname.startsWith('192.168');
+
+            const container = document.getElementById('btn-access-container');
+
+            if (isLocal) {
+                container.innerHTML = `
+                    <a href="https://cams.osberberts.com" target="_self" class="btn-access">
+                        🌐 Acesso Online
+                    </a>`;
+            } else {
+                // Offline access (Local)
+                // Tenta usar o IP detectado pelo backend
+                const localLink = info.local_url || 'http://localhost:5000';
+                container.innerHTML = `
+                    <a href="${localLink}" target="_self" class="btn-access" style="border-color:#555; color:#aaa">
+                        🏠 Acesso Local
+                    </a>`;
+            }
+        });
+
+        // === CORE LOGIC ===
+        async function loadCameras() {
+            try {
+                const res = await fetch('/api/cameras');
+                if (!res.ok) throw new Error("API Error");
+                const cameras = await res.json();
+                renderGrid(cameras);
+            } catch (e) {
+                document.getElementById('grid').innerHTML = '<div style="text-align:center; padding:20px">Erro de conexão.</div>';
+            }
+        }
+
+        function renderGrid(cameras) {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            if (!cameras || cameras.length === 0) {
+                grid.innerHTML = '<div style="padding:20px; text-align:center">Nenhuma câmera.</div>'; return;
+            }
+
+            cameras.forEach(cam => {
+                const isOnline = cam.is_online;
+                const imgUrl = cam.snapshot_url;
+                const streamKey = cam.stream_key;
+
+                const div = document.createElement('div');
+                div.className = 'camera-card';
+
+                // --- CONTEÚDO DO CARD ---
+                // Se estiver online, usa <a> para navegação nativa (mais robusto que onclick via JS)
+                // Se offline, div normal.
+
+                // --- CONTEÚDO DO CARD ---
+                // Placeholder Offline
+                const offlineHtml = `
+                    <div class="offline-placeholder" style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#151515; color:#555;">
+                        <div style="font-size:2rem; margin-bottom:5px">🔌</div>
+                        <div style="font-weight:bold; font-size:0.9rem; letter-spacing:1px">OFFLINE</div>
+                    </div>
+                `;
+
+                // VOLTANDO AO PADRÃO PROXY PARA ESTABILIDADE
+                // O bypass direto na porta 1984 pode falhar se firewall bloquear
+                let mjpegSrc = `/api/stream.mjpeg?src=${streamKey}`;
+
+                let mediaContent = '';
+                if (isOnline) {
+                    mediaContent = `
+                        <div style="width:100%; height:100%; position:relative; background:#151515; pointer-events:none;">
+                            <img id="img-${streamKey || 'null'}" 
+                                 src="${mjpegSrc}" 
+                                 style="width:100%; height:100%; object-fit:cover; display:block; opacity:0; transition:opacity 0.5s;" 
+                                 onload="this.style.opacity='1'"
+                                 onerror="handleStreamError(this, '${streamKey}')">
+                        </div>
+                    `;
+                } else {
+                    mediaContent = offlineHtml;
+                }
+
+                const overlayHtml = `
+                    <div class="camera-overlay">
+                        <div class="camera-title">
+                            ${cam.name} 
+                            <span id="status-${streamKey || 'off'}" class="status-dot" style="float:right; color:${isOnline ? '#26a69a' : '#cf6679'}">●</span>
+                        </div>
+                        <div class="config-btn" onclick="event.stopPropagation(); openConfig('${cam.mac}', '${cam.name}', '${cam.ip || ''}', '${cam.username || ''}', '${cam.password || ''}', ${cam.crop_mode || 0}, '${cam.rtsp_url || ''}', ${cam.timeout || 25})">⚙️</div>
+                    </div>
+                `;
+
+                // Montagem do Card
+                div.innerHTML = `
+                    <div style="width:100%; height:100%; position:relative;">
+                        ${mediaContent}
+                        ${overlayHtml}
+                    </div>
+                `;
+
+                // Interação
+                if (isOnline && streamKey) {
+                    div.style.cursor = 'pointer';
+                    div.style.animation = 'fadeIn 0.5s';
+                    // Uso de onclick direto no elemento para garantir captura em touch antigo
+                    div.onclick = function () { openPlayer(streamKey); };
+                } else {
+                    div.style.cursor = 'default';
+                    div.style.opacity = '0.5';
+                }
+
+                grid.appendChild(div);
+            });
+        }
+
+        // --- FUNÇÃO DE NAVEGAÇÃO SEGURA ---
+        function openPlayer(streamKey) {
+            console.log("Navegando (Force Stop)...", streamKey);
+
+            // Força o navegador a parar todos os downloads (streams) atuais
+            // Isso libera os Sockets imediatamente para a nova página.
+            try { window.stop(); } catch (e) { }
+
+            // Navega
+            setTimeout(() => {
+                window.location.href = 'player.html?src=' + encodeURIComponent(streamKey);
+            }, 10);
+        }
+
+
+        // --- HANDLER ROBUSTO DE ERRO ---
+        function handleStreamError(imgEl, key) {
+            console.warn("Stream Error for:", key);
+
+            // 1. Esconde a imagem falha
+            imgEl.style.display = 'none';
+
+            // 2. Injeta o Placeholder Offline (se já não tiver)
+            const parent = imgEl.parentElement;
+            if (!parent.querySelector('.offline-placeholder')) {
+                parent.innerHTML = `
+                    <div class="offline-placeholder" style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#151515; color:#555;">
+                        <div style="font-size:2rem; margin-bottom:5px">🔌</div>
+                        <div style="font-weight:bold; font-size:0.9rem; letter-spacing:1px">OFFLINE</div>
+                    </div>
+                `;
+            }
+
+            // 3. Atualiza o Status Dot para VERMELHO
+            const statusDot = document.getElementById(`status-${key}`);
+            if (statusDot) {
+                statusDot.style.color = '#cf6679'; // Vermelho Erro
+                statusDot.title = "Offline (Falha no Stream)";
+            }
+        }
+
+        // function startReload(streamKey, baseUrl) { ... } (REMOVED logic to prevent loop)
+
+        // --- FUNCÕES DO MÓDAL DE CONFIGURAÇÃO ---
+        function openConfig(mac, name, ip, user, pass, cropMode, url, timeout) {
+            window.event.stopPropagation();
+
+            // MODO EDIÇÃO
+            const title = document.getElementById('configTitle');
+            if (title) title.innerText = '⚙️ Editar Câmera';
+
+            const btnDel = document.getElementById('btnDelete');
+            if (btnDel) btnDel.style.display = 'block';
+
+            document.getElementById('editMac').value = mac;
+            document.getElementById('editName').value = name;
+            document.getElementById('editIp').value = ip;
+            document.getElementById('editUser').value = user;
+            document.getElementById('editPass').value = pass;
+            document.getElementById('editCrop').value = cropMode || 0;
+            document.getElementById('editUrl').value = url || '';
+            document.getElementById('editTimeout').value = timeout || 25;
+
+            const stat = document.getElementById('ip-status');
+            if (stat) stat.innerText = '';
+            const statLogin = document.getElementById('login-status');
+            if (statLogin) statLogin.innerText = '';
+
+            document.getElementById('modalConfig').style.display = 'flex';
+        }
+
+        function openNewCamera() {
+            // MODO CRIAÇÃO
+            const title = document.getElementById('configTitle');
+            if (title) title.innerText = '➕ Nova Câmera';
+
+            const btnDel = document.getElementById('btnDelete');
+            if (btnDel) btnDel.style.display = 'none';
+
+            // Limpa campos
+            document.getElementById('editMac').value = '';
+            document.getElementById('editName').value = '';
+            document.getElementById('editIp').value = '';
+            document.getElementById('editUser').value = 'admin';
+            document.getElementById('editPass').value = '';
+            document.getElementById('editCrop').value = '0';
+            document.getElementById('editUrl').value = '';
+            document.getElementById('editTimeout').value = '25';
+
+            const stat = document.getElementById('ip-status');
+            if (stat) stat.innerText = '';
+            const statLogin = document.getElementById('login-status');
+            if (statLogin) statLogin.innerText = '';
+
+            document.getElementById('modalConfig').style.display = 'flex';
+        }
+
+        function closeConfig() {
+            document.getElementById('modalConfig').style.display = 'none';
+        }
+
+        async function saveConfig() {
+            const data = {
+                mac: document.getElementById('editMac').value,
+                name: document.getElementById('editName').value,
+                ip: document.getElementById('editIp').value,
+                username: document.getElementById('editUser').value,
+                password: document.getElementById('editPass').value,
+                crop_mode: parseInt(document.getElementById('editCrop').value),
+                rtsp_url: document.getElementById('editUrl').value,
+                timeout: parseInt(document.getElementById('editTimeout').value)
+            };
+
+            try {
+                const res = await fetch('/api/save_camera', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    closeConfig();
+                    loadCameras(); // Recarrega para aplicar
+                } else {
+                    alert('Erro ao salvar');
+                }
+            } catch (e) {
+                alert('Erro de conexão');
+            }
+        }
+
+        // --- NOVAS FUNCOES DE UI ---
+        function togglePass() {
+            const el = document.getElementById('editPass');
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+
+        async function checkIP() {
+            const ip = document.getElementById('editIp').value;
+            const stat = document.getElementById('ip-status');
+            if (!ip) return;
+
+            stat.innerText = 'Testando ping/porta...';
+            stat.style.color = '#aaa';
+
+            try {
+                const res = await fetch('/api/check_ip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    stat.innerText = '✅ Câmera Online na Rede (Porta 554)';
+                    stat.style.color = '#4caf50';
+                } else {
+                    stat.innerText = '❌ Sem resposta: ' + (data.error || 'Timeout');
+                    stat.style.color = '#cf6679';
+                }
+            } catch (e) {
+                stat.innerText = '❌ Erro ao chamar teste';
+                stat.style.color = '#cf6679';
+            }
+        }
+
+        async function checkLogin() {
+            const ip = document.getElementById('editIp').value;
+            const user = document.getElementById('editUser').value;
+            const pass = document.getElementById('editPass').value;
+            const stat = document.getElementById('login-status');
+
+            if (!ip) return;
+            stat.innerText = 'Testando RTSP...';
+            stat.style.color = '#aaa';
+
+            const url = document.getElementById('editUrl').value;
+            const timeout = parseInt(document.getElementById('editTimeout').value) || 25;
+
+            try {
+                const res = await fetch('/api/check_login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip, username: user, password: pass, url: url, timeout: timeout })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    stat.innerText = '✅ Acesso Permitido!'; stat.style.color = '#4caf50';
+                } else {
+                    stat.innerText = '❌ Acesso Negado: ' + (data.error || '?'); stat.style.color = '#cf6679';
+                }
+            } catch (e) {
+                stat.innerText = '❌ Erro API'; stat.style.color = '#cf6679';
+            }
+        }
+
+        async function deleteCamera() {
+            if (!confirm("Tem certeza que deseja excluir esta câmera? Esta ação não pode ser desfeita.")) return;
+
+            const mac = document.getElementById('editMac').value;
+            if (!mac) return; // Segurança
+
+            try {
+                const res = await fetch('/api/delete_camera', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mac })
+                });
+                if (res.ok) {
+                    closeConfig();
+                    loadCameras();
+                } else {
+                    const err = await res.json();
+                    alert('Erro ao excluir: ' + (err.error || 'Erro desconhecido'));
+                }
+            } catch (e) {
+                alert('Erro de conexão ao excluir');
+            }
+        }
+
+        // === ADMIN FUNCTIONS ===
+        async function checkPendingUsers() {
+            const res = await fetch('/api/users/pending');
+            const data = await res.json();
+            if (data.length > 0) {
+                const badge = document.getElementById('badge-pending');
+                badge.innerText = data.length;
+                badge.style.display = 'inline-block';
+            }
+        }
+
+        async function openApprovalModal() {
+            document.getElementById('modal-approve').style.display = 'flex';
+            toggleDrawer(); // fecha menu
+            const list = document.getElementById('pending-list');
+            list.innerHTML = 'Carregando...';
+
+            const res = await fetch('/api/users/pending');
+            const users = await res.json();
+
+            list.innerHTML = '';
+            if (users.length === 0) list.innerHTML = '<div style="padding:10px; color:#777">Nenhum pendente.</div>';
+
+            users.forEach(u => {
+                const div = document.createElement('div');
+                div.className = 'user-list-item';
+                div.innerHTML = `
+                    <span>${u}</span>
+                    <button class="btn-approve" onclick="approveWorker('${u}')">Aprovar</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        async function approveWorker(username) {
+            await fetch('/api/users/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            openApprovalModal(); // reload
+            checkPendingUsers(); // update badge
+        }
+
+        // === PASSWORD CHANGE ===
+        function openPassModal() {
+            document.getElementById('modal-pass').style.display = 'flex';
+            toggleDrawer();
+        }
+
+        async function doChangePass() {
+            const newp = document.getElementById('new-pass').value;
+            if (!newp) return alert('Senha vazia');
+
+            await fetch('/api/users/change_password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, new_password: newp })
+            });
+            alert('Senha alterada!');
+            closeModals();
+        }
+
+        // === UTILS ===
+        function toggleDrawer() {
+            document.getElementById('drawer').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('open');
+        }
+        function closeModals() {
+            document.querySelectorAll('.modal-overlay').forEach(el => el.style.display = 'none');
+        }
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        async function refreshDashboard() {
+            const btn = document.getElementById('btn-refresh');
+            if (btn) btn.classList.add('rotating');
+            await loadCameras();
+            setTimeout(() => { if (btn) btn.classList.remove('rotating'); }, 800);
+        }
+
+        // Start
+        loadCameras();
+
+        // PWA Install
+        let deferredPrompt;
+        const btnInstall = document.getElementById('btn-install');
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault(); deferredPrompt = e;
+            btnInstall.style.display = 'flex';
+        });
+        btnInstall.addEventListener('click', () => {
+            btnInstall.style.display = 'none'; deferredPrompt.prompt();
+        });
+
+        // --- RELOGIO DIGITAL ---
+        function updateClock() {
+            const now = new Date();
+            const d = String(now.getDate()).padStart(2, '0');
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const y = now.getFullYear();
+            const H = String(now.getHours()).padStart(2, '0');
+            const M = String(now.getMinutes()).padStart(2, '0');
+            const S = String(now.getSeconds()).padStart(2, '0');
+
+            const el = document.getElementById('app-clock');
+            if (el) el.innerHTML = `${d}/${m}/${y}&nbsp;&nbsp;${H}:${M}:${S}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+    </script>
+</body>
+
+</html>

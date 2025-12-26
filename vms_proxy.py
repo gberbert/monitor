@@ -283,7 +283,7 @@ def check_login():
     candidates = [
         shutil.which("ffmpeg"),
         os.path.join(os.getcwd(), "go2rtc_bin", "ffmpeg.exe"),
-        "C:/antigravity_www/ffmpeg.exe",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "go2rtc_bin", "ffmpeg.exe"),
         "ffmpeg"
     ]
     

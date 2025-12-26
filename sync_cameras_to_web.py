@@ -41,6 +41,9 @@ def sync_config():
     
     yaml_content = []
     # Header
+    # Dynamic FFmpeg Path
+    ffmpeg_abs_path = os.path.join(BASE_DIR, "go2rtc_bin", "ffmpeg.exe").replace("\\", "/")
+
     yaml_content.extend([
         "log:",
         "  level: info",
@@ -49,7 +52,7 @@ def sync_config():
         "  streams: error",
         "",
         "ffmpeg:",
-        '  bin: "C:/antigravity_www/ffmpeg.exe"',
+        f'  bin: "{ffmpeg_abs_path}"',
         "",
         "api:",
         '  listen: ":1984"',
@@ -152,7 +155,8 @@ def sync_config():
         
         # MJPEG Stream Entry (EXEC FFMPEG)
         # MUST connect to localhost RTSP to reuse connection.
-        ffmpeg_bin = "C:/antigravity_www/ffmpeg.exe"
+        # Custom binary path
+        ffmpeg_bin = os.path.join(BASE_DIR, "go2rtc_bin", "ffmpeg.exe").replace("\\", "/")
         if not os.path.exists(ffmpeg_bin): ffmpeg_bin = "ffmpeg"
         
         # Low FPS for mobile

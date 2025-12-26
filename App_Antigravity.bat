@@ -36,7 +36,7 @@ start /MIN "Cloudflare Tunnel" cloudflared.exe tunnel --config config.yml run
 echo.
 echo ========================================================
 echo   SISTEMA ONLINE!
-echo   O Proxy esta unindo o Site (C:\antigravity_www)
+echo   O Proxy esta unindo o Site (go2rtc_bin\www)
 echo   com o Video (Go2RTC :1984) numa coisa so (:5000).
 echo.
 echo   ACESSE EM QUALQUER LUGAR:
