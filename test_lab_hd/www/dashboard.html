@@ -687,7 +687,8 @@
 
                 // VOLTANDO AO PADRÃO PROXY PARA ESTABILIDADE
                 // O bypass direto na porta 1984 pode falhar se firewall bloquear
-                let mjpegSrc = `/api/stream.mjpeg?src=${streamKey}`;
+                // DIRECT CONNECTION (Test Lab HD): Bypass Python Proxy (port 5001) -> Direct Go2RTC (port 1985)
+                let mjpegSrc = `http://${window.location.hostname}:1985/api/stream.mjpeg?src=${streamKey}`;
 
                 let mediaContent = '';
                 if (isOnline) {

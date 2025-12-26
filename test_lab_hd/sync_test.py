@@ -41,6 +41,7 @@ def sync_config():
     
     yaml_content = []
     # Header
+    ffmpeg_abs_path = os.path.abspath(os.path.join(BASE_DIR, "..", "go2rtc_bin", "ffmpeg.exe")).replace("\\", "/")
     yaml_content.extend([
         "log:",
         "  level: info",
@@ -49,7 +50,7 @@ def sync_config():
         "  streams: error",
         "",
         "ffmpeg:",
-        '  bin: "C:/antigravity_www/ffmpeg.exe"',
+        f'  bin: "{ffmpeg_abs_path}"',
         "",
         "api:",
         '  listen: ":1985"',
@@ -118,25 +119,25 @@ def sync_config():
         vf = ""
         if crop_mode == 0: # Normal
             vf_h264  = "scale=1280:720"
-            vf_mjpeg = "scale=640:360"
+            vf_mjpeg = "scale=1280:720"
         elif crop_mode == 1: # 50% Top
             vf_h264  = "crop=in_w:in_h/2:0:0,scale=1280:720"
-            vf_mjpeg = "crop=in_w:in_h/2:0:0,scale=640:360"
+            vf_mjpeg = "crop=in_w:in_h/2:0:0,scale=1280:720"
         elif crop_mode == 2: # 50% Bottom
             vf_h264  = "crop=in_w:in_h/2:0:in_h/2,scale=1280:720"
-            vf_mjpeg = "crop=in_w:in_h/2:0:in_h/2,scale=640:360"
+            vf_mjpeg = "crop=in_w:in_h/2:0:in_h/2,scale=1280:720"
         elif crop_mode == 3: # 33% Top
             vf_h264  = "crop=in_w:in_h/3:0:0,scale=1280:720"
-            vf_mjpeg = "crop=in_w:in_h/3:0:0,scale=640:360"
+            vf_mjpeg = "crop=in_w:in_h/3:0:0,scale=1280:720"
         elif crop_mode == 4: # 33% Mid
             vf_h264  = "crop=in_w:in_h/3:0:in_h/3,scale=1280:720"
-            vf_mjpeg = "crop=in_w:in_h/3:0:in_h/3,scale=640:360"
+            vf_mjpeg = "crop=in_w:in_h/3:0:in_h/3,scale=1280:720"
         elif crop_mode == 5: # 33% Bot
             vf_h264  = "crop=in_w:in_h/3:0:2*in_h/3,scale=1280:720"
-            vf_mjpeg = "crop=in_w:in_h/3:0:2*in_h/3,scale=640:360"
+            vf_mjpeg = "crop=in_w:in_h/3:0:2*in_h/3,scale=1280:720"
         else:
             vf_h264  = "scale=1280:720"
-            vf_mjpeg = "scale=640:360"
+            vf_mjpeg = "scale=1280:720"
 
         # MAIN STREAM (H264)
         # Consumes from LOCALHOST rtsp (reusing the source connection)
@@ -152,11 +153,12 @@ def sync_config():
         
         # MJPEG Stream Entry (EXEC FFMPEG)
         # MUST connect to localhost RTSP to reuse connection.
-        ffmpeg_bin = "C:/antigravity_www/ffmpeg.exe"
+        ffmpeg_bin = os.path.abspath(os.path.join(BASE_DIR, "..", "go2rtc_bin", "ffmpeg.exe")).replace("\\", "/")
         if not os.path.exists(ffmpeg_bin): ffmpeg_bin = "ffmpeg"
         
         # Low FPS for mobile
-        mjpeg_cmd = f'exec:{ffmpeg_bin} -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8556/{src_id}" -vf "{vf_mjpeg}" -r 8 -c:v mjpeg -an -f mjpeg -'
+        # Quote the executable path to handle spaces in "PROJETOS ANTIGRAVITY"
+        mjpeg_cmd = f'exec:"{ffmpeg_bin}" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8556/{src_id}" -vf "{vf_mjpeg}" -r 24 -c:v mjpeg -an -f mjpeg -'
         
         yaml_content.append(f"  {mjpeg_id}: {mjpeg_cmd}")
         yaml_content.append("")
