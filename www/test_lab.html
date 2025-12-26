@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratório de Testes (Admin)</title>
+    <style>
+        body {
+            background: #121212;
+            color: #eee;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .controls {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #26a69a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        select {
+            padding: 10px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .viewport {
+            background: black;
+            aspect-ratio: 16/9;
+            position: relative;
+            border: 1px solid #333;
+        }
+
+        .viewport h3 {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.7);
+            margin: 0;
+            padding: 5px 10px;
+            font-size: 12px;
+            z-index: 10;
+        }
+
+        img,
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .viewport .info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.7);
+            width: 100%;
+            padding: 5px;
+            font-size: 10px;
+            box-sizing: border-box;
+        }
+
+        .back-link {
+            align-self: flex-start;
+            margin-bottom: 20px;
+            color: #aaa;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="dashboard.html" class="back-link">⬅ Voltar ao Dashboard</a>
+
+    <div class="controls">
+        <h2>🧪 Ambiente de Testes HD (Isolado)</h2>
+        <p style="font-size: 0.9rem; color: #aaa;">Selecione uma câmera para comparar o stream OTIMIZADO (Atual) com o
+            stream HD (Teste).</p>
+
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <select id="cam-select">
+                <option value="">Carregando câmeras...</option>
+            </select>
+            <button onclick="loadStreams()">▶ Carregar Comparativo</button>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- PLAYER 1: ATUAL (MJPEG Otimizado) -->
+        <div class="viewport">
+            <h3>VERSÃO ATUAL (SD/MJPEG)</h3>
+            <img id="player-sd" alt="Aguardando..." />
+            <div class="info" id="info-sd">-</div>
+        </div>
+
+        <!-- PLAYER 2: TESTE (HD/MP4) -->
+        <div class="viewport">
+            <h3>VERSÃO TESTE (HD/MP4)</h3>
+            <!-- VIDEO TAG (MSE) -->
+            <video id="player-hd" autoplay playsinline controls muted></video>
+            <div class="info" id="info-hd">-</div>
+        </div>
+    </div>
+
+    <!-- DEBUG CONSOLE -->
+    <div id="debug-console"
+        style="background:#000; color:#0f0; font-family:monospace; padding:10px; margin-top:20px; width:100%; max-width:1200px; height:200px; overflow-y:auto; border:1px solid #333; font-size:12px;">
+        <div>--- LOGS DE CONEXÃO ---</div>
+    </div>
+
+    <script>
+        // Auth Check
+        if (sessionStorage.getItem('vms_user') !== 'admin') {
+            alert('Acesso negado. Apenas Admin.');
+            window.location.href = 'dashboard.html';
+        }
+
+        function log(msg) {
+            const c = document.getElementById('debug-console');
+            const d = new Date();
+            const time = d.toLocaleTimeString() + '.' + d.getMilliseconds();
+            const line = document.createElement('div');
+            line.innerText = `[${time}] ${msg}`;
+            c.appendChild(line);
+            c.scrollTop = c.scrollHeight;
+            console.log(msg);
+        }
+
+        async function loadCameras() {
+            log("Buscando lista de câmeras...");
+            try {
+                const res = await fetch('/api/cameras');
+                const data = await res.json();
+                const sel = document.getElementById('cam-select');
+                sel.innerHTML = '';
+
+                let count = 0;
+                data.forEach(cam => {
+                    if (cam.is_online && cam.stream_key) {
+                        const opt = document.createElement('option');
+                        opt.value = cam.stream_key;
+                        opt.text = cam.name;
+                        sel.appendChild(opt);
+                        count++;
+                    }
+                });
+                log(`Câmeras carregadas: ${count}`);
+            } catch (e) {
+                log("ERRO ao carregar câmeras: " + e.message);
+            }
+        }
+
+        function loadStreams() {
+            const keySD = document.getElementById('cam-select').value;
+            if (!keySD) return;
+
+            log(`--- INICIANDO TESTE PARA: ${keySD} ---`);
+
+            let keyHD = keySD.replace('_mjpeg', '');
+            if (keyHD === keySD) {
+                log("AVISO: Chave não tem sufixo _mjpeg. Tentando usar a mesma para HD.");
+            }
+
+            // 1. Carregar SD
+            const img = document.getElementById('player-sd');
+            const urlSD = `/api/stream.mjpeg?src=${keySD}`;
+            log(`SD: Conectando MJPEG em ${urlSD}`);
+
+            img.src = "";
+            img.onload = () => log("SD: Frame carregado (OK)");
+            img.onerror = () => log("SD: Erro ao carregar imagem/stream");
+
+            setTimeout(() => { img.src = urlSD; }, 100);
+
+            document.getElementById('info-sd').innerText = `Stream: ${keySD} (MJPEG)`;
+
+            // 2. Carregar HD (MP4 via Go2RTC - Transcode Video + Audio AAC)
+            // Agora que o binário ffmpeg foi corrigido, o transcode de áudio deve funcionar.
+            const urlHD = `/api/stream.mp4?src=${keyHD}&video=h264&audio=aac`;
+            log(`HD: Conectando MP4 (Transcoded H264+AAC) em ${urlHD}`);
+
+            vid.src = "";
+
+            vid.onloadeddata = () => log("HD: Dados carregados (ReadyState >= 2)");
+            vid.onplaying = () => log("HD: Reproduzindo (PLAYING)");
+            vid.onerror = (e) => log("HD: ERRO NO PLAYER. " + (vid.error ? vid.error.message : "Codecs incompatíveis ou timeout"));
+
+            setTimeout(() => {
+                vid.src = urlHD;
+                vid.play().then(() => log("HD: Autoplay OK")).catch(e => log("HD: Autoplay falhou: " + e.message));
+            }, 100);
+
+            document.getElementById('info-hd').innerText = `Stream: ${keyHD} (MP4/H.264)`;
+        }
+
+        loadCameras();
+    </script>
+</body>
+
+</html>

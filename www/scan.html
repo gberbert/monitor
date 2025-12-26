@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner de Rede - Antigravity VMS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #121212;
+            color: #eee;
+            font-family: 'Inter', sans-serif;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1 {
+            color: #4db6ac;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #26a69a;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2bbbad;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .status-box {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-left: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1e1e1e;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+
+        th {
+            background: #252525;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: #2a2a2a;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-registered {
+            background: rgba(77, 182, 172, 0.2);
+            color: #4db6ac;
+            border: 1px solid #4db6ac;
+        }
+
+        /* Verde */
+        .badge-available {
+            background: rgba(66, 165, 245, 0.2);
+            color: #42a5f5;
+            border: 1px solid #42a5f5;
+        }
+
+        /* Azul */
+        .badge-offline {
+            background: #333;
+            color: #777;
+        }
+
+        .back-link {
+            align-self: flex-start;
+            margin-bottom: 20px;
+            color: #aaa;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .back-link:hover {
+            color: #fff;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #26a69a;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <a href="dashboard.html" class="back-link">⬅ Voltar ao Dashboard</a>
+
+        <h1>📡 Scanner de Dispositivos de Vídeo</h1>
+
+        <div class="controls">
+            <div>
+                <strong>Rede: </strong> <span id="network-range">Detectando...</span>
+                <span id="scan-status" class="status-box">Aguardando scan...</span>
+            </div>
+            <button id="btn-scan" onclick="startScan()">
+                🔍 Iniciar Varredura
+            </button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Endereço IP</th>
+                    <th>Porta Aberta</th>
+                    <th>Status</th>
+                    <th>Detalhes</th>
+                </tr>
+            </thead>
+            <tbody id="scan-results">
+                <tr>
+                    <td colspan="4" style="text-align:center; color:#555;">Clique em Iniciar Varredura</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Auth Check
+        if (sessionStorage.getItem('vms_user') !== 'admin') {
+            alert('Acesso restrito. Faça login como admin.');
+            window.location.href = 'dashboard.html';
+        }
+
+        async function startScan() {
+            const btn = document.getElementById('btn-scan');
+            const status = document.getElementById('scan-status');
+            const tbody = document.getElementById('scan-results');
+
+            btn.disabled = true;
+            status.innerHTML = '<div class="spinner"></div> Varrendo rede (dispositivos com porta 554/80)...';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#aaa;">Varrendo... aguarde p/ 10-20s</td></tr>';
+
+            try {
+                // Chama a API do Python (que vamos criar)
+                const res = await fetch('/api/network_scan');
+                if (!res.ok) throw new Error("Erro na API");
+
+                const data = await res.json();
+                renderTable(data);
+
+                status.innerText = `Scan completo. ${data.devices.length} dispositivos encontrados.`;
+                document.getElementById('network-range').innerText = data.network;
+
+            } catch (e) {
+                console.error(e);
+                status.innerText = "Erro ao escanear.";
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#f55;">Erro: ${e.message}</td></tr>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('scan-results');
+            tbody.innerHTML = '';
+
+            if (data.devices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum dispositivo de vídeo encontrado.</td></tr>';
+                return;
+            }
+
+            // Ordenar: Registrados primeiro, depois por IP
+            data.devices.sort((a, b) => {
+                if (a.is_registered === b.is_registered) {
+                    // Sort IP
+                    const ipA = a.ip.split('.').map(Number);
+                    const ipB = b.ip.split('.').map(Number);
+                    for (let i = 0; i < 4; i++) if (ipA[i] !== ipB[i]) return ipA[i] - ipB[i];
+                    return 0;
+                }
+                return a.is_registered ? -1 : 1;
+            });
+
+            data.devices.forEach(dev => {
+                const tr = document.createElement('tr');
+
+                let badgeClass = 'badge-available';
+                let statusText = 'DISPONÍVEL';
+                let details = 'Detectado na rede (RTSP/HTTP)';
+
+                if (dev.is_registered) {
+                    badgeClass = 'badge-registered';
+                    statusText = 'EM USO';
+                    details = `Cadastrado como: <strong>${dev.name}</strong>`;
+                }
+
+                tr.innerHTML = `
+                    <td style="font-family:monospace; font-size:1.1rem;">${dev.ip}</td>
+                    <td>${dev.open_port || 'N/A'}</td>
+                    <td><span class="badge ${badgeClass}">${statusText}</span></td>
+                    <td>${details}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+
+</html>

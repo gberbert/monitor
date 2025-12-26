@@ -440,6 +440,9 @@
                     <span class="menu-icon">👥</span> Acessos
                     <span id="badge-pending" class="badge" style="display:none">0</span>
                 </a>
+                <a href="scan.html" class="menu-item" style="color: #4db6ac;">
+                    <span class="menu-icon">📡</span> Scanner de Rede
+                </a>
             </div>
 
             <div class="menu-item" onclick="openPassModal()">
@@ -623,19 +626,12 @@
                 const div = document.createElement('div');
                 div.className = 'camera-card';
 
-                if (isOnline && streamKey) {
-                    div.onclick = () => window.location.href = `player.html?src=${streamKey}`;
-                    div.style.cursor = 'pointer';
-                    div.style.animation = 'fadeIn 0.5s';
-                } else {
-                    div.style.opacity = '0.5';
-                }
+                // --- CONTEÚDO DO CARD ---
+                // Se estiver online, usa <a> para navegação nativa (mais robusto que onclick via JS)
+                // Se offline, div normal.
 
                 // --- CONTEÚDO DO CARD ---
-                // Se estiver online, tenta video. Se offline, placeholder direto.
-                let innerContent = '';
-
-                // Placeholder Offline (Reutilizável)
+                // Placeholder Offline
                 const offlineHtml = `
                     <div class="offline-placeholder" style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#151515; color:#555;">
                         <div style="font-size:2rem; margin-bottom:5px">🔌</div>
@@ -643,37 +639,73 @@
                     </div>
                 `;
 
+                // VOLTANDO AO PADRÃO PROXY PARA ESTABILIDADE
+                // O bypass direto na porta 1984 pode falhar se firewall bloquear
+                let mjpegSrc = `/api/stream.mjpeg?src=${streamKey}`;
+
+                let mediaContent = '';
                 if (isOnline) {
-                    // MJPEG Stream BLINDADO (Versão 2.0 - Handler Dedicado)
-                    innerContent = `
-                        <div style="width:100%; height:100%; position:relative; background:#151515;">
+                    mediaContent = `
+                        <div style="width:100%; height:100%; position:relative; background:#151515; pointer-events:none;">
                             <img id="img-${streamKey || 'null'}" 
-                                 src="/api/stream.mjpeg?src=${streamKey}" 
+                                 src="${mjpegSrc}" 
                                  style="width:100%; height:100%; object-fit:cover; display:block; opacity:0; transition:opacity 0.5s;" 
                                  onload="this.style.opacity='1'"
                                  onerror="handleStreamError(this, '${streamKey}')">
                         </div>
                     `;
                 } else {
-                    innerContent = offlineHtml;
+                    mediaContent = offlineHtml;
                 }
 
-                div.innerHTML = `
-                    ${innerContent}
-                    
+                // Overlay HTML
+                const overlayHtml = `
                     <div class="camera-overlay">
                         <div class="camera-title">
                             ${cam.name} 
                             <span id="status-${streamKey || 'off'}" class="status-dot" style="float:right; color:${isOnline ? '#26a69a' : '#cf6679'}">●</span>
                         </div>
-                        <div class="config-btn" onclick="openConfig('${cam.mac}', '${cam.name}', '${cam.ip || ''}', '${cam.username || ''}', '${cam.password || ''}', ${cam.crop_mode || 0})">⚙️</div>
+                        <div class="config-btn" onclick="event.stopPropagation(); openConfig('${cam.mac}', '${cam.name}', '${cam.ip || ''}', '${cam.username || ''}', '${cam.password || ''}', ${cam.crop_mode || 0})">⚙️</div>
                     </div>
                 `;
-                grid.appendChild(div);
 
-                // No longer needed: startReload(streamKey, imgUrl);
+                // Montagem do Card
+                div.innerHTML = `
+                    <div style="width:100%; height:100%; position:relative;">
+                        ${mediaContent}
+                        ${overlayHtml}
+                    </div>
+                `;
+
+                // Interação
+                if (isOnline && streamKey) {
+                    div.style.cursor = 'pointer';
+                    div.style.animation = 'fadeIn 0.5s';
+                    // Uso de onclick direto no elemento para garantir captura em touch antigo
+                    div.onclick = function () { openPlayer(streamKey); };
+                } else {
+                    div.style.cursor = 'default';
+                    div.style.opacity = '0.5';
+                }
+
+                grid.appendChild(div);
             });
         }
+
+        // --- FUNÇÃO DE NAVEGAÇÃO SEGURA ---
+        function openPlayer(streamKey) {
+            console.log("Navegando (Force Stop)...", streamKey);
+
+            // Força o navegador a parar todos os downloads (streams) atuais
+            // Isso libera os Sockets imediatamente para a nova página.
+            try { window.stop(); } catch (e) { }
+
+            // Navega
+            setTimeout(() => {
+                window.location.href = 'player.html?src=' + encodeURIComponent(streamKey);
+            }, 10);
+        }
+
 
         // --- HANDLER ROBUSTO DE ERRO ---
         function handleStreamError(imgEl, key) {

@@ -351,6 +351,88 @@ def change_password_api():
     database.change_password(username, new_pass)
     return jsonify({"status": "ok"})
 
+# --- NETWORK SCANNER ---
+@app.route('/api/network_scan')
+def api_network_scan():
+    """
+    Scans the local network for devices with open port 554 (RTSP) or 80 (HTTP),
+    identifying potential cameras and checking if they are already registered.
+    """
+    import socket
+    import concurrent.futures
+    # import sqlite3  <-- Not needed, using database module
+
+    # 1. Determine local network range (Assuming /24 from local IP)
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+    except Exception:
+        local_ip = "192.168.3.65"
+    finally:
+        s.close()
+
+    parts = local_ip.split('.')
+    network_prefix = f"{parts[0]}.{parts[1]}.{parts[2]}."
+    
+    # 2. Get Registered Cameras IPs using Database Module
+    # Returns list of dicts: [{'ip': '...', 'name': '...'}, ...]
+    try:
+        all_cams = database.get_all_cameras()
+        registered = {cam['ip']: cam['name'] for cam in all_cams if 'ip' in cam}
+    except Exception as e:
+        print(f"[SCAN ERROR] Failed to fetch cameras from DB: {e}")
+        registered = {}
+
+    found_devices = []
+
+    def scan_ip(last_octet):
+        target_ip = f"{network_prefix}{last_octet}"
+        if target_ip == local_ip: return None # Skip self
+
+        # Try RSTP Port (554) first - Strongest indicator of a Camera
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(0.2) # Fast timeout to scan quickly
+            result = sock.connect_ex((target_ip, 554))
+            sock.close()
+            
+            if result == 0:
+                is_reg = target_ip in registered
+                return {
+                    "ip": target_ip,
+                    "open_port": 554,
+                    "is_registered": is_reg,
+                    "name": registered.get(target_ip)
+                }
+            
+            # If 554 closed, try 80 (Web Interface)
+            # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # sock.settimeout(0.1)
+            # res80 = sock.connect_ex((target_ip, 80))
+            # sock.close()
+            # if res80 == 0:
+            #      return { "ip": target_ip, "open_port": 80, "is_registered": target_ip in registered, "name": registered.get(target_ip) }
+
+        except:
+            pass
+        return None
+
+    # 3. Parallel Scan
+    print(f"SCANNING NETWORK: {network_prefix}0/24")
+    # Reduced threads to avoid blocking server if too aggressive
+    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+        futures = [executor.submit(scan_ip, i) for i in range(1, 255)]
+        for future in concurrent.futures.as_completed(futures):
+            res = future.result()
+            if res:
+                found_devices.append(res)
+
+    return jsonify({
+        "network": f"{network_prefix}0/24",
+        "devices": found_devices
+    })
+
 # --- PROXY PARA API DO GO2RTC (Salva o dia!) ---
 @app.route('/api/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def proxy_api(subpath):
@@ -384,4 +466,12 @@ if __name__ == '__main__':
     print(f"SERVING SITE FROM: {STATIC_FOLDER}")
     print(f"PROXYING VIDEO TO: {GO2RTC_API}")
     print(f"LISTENING ON: 5000")
-    app.run(host='0.0.0.0', port=5000)
+
+    try:
+        from waitress import serve
+        print("Using Waitress Server (Production Mode)")
+        # Threads aumentado para 200 para suportar múltiplos totems via Proxy
+        serve(app, host='0.0.0.0', port=5000, threads=200)
+    except ImportError:
+        print("WARNING: 'waitress' not found. Using Flask Dev Server (Less Efficient)")
+        app.run(host='0.0.0.0', port=5000, threaded=True)

@@ -85,52 +85,48 @@
         const urlParams = new URLSearchParams(window.location.search);
         let STREAM_ID = urlParams.get('src');
 
-        if (!STREAM_ID) {
-            statusLog.innerText = "Erro: Nenhuma câmera selecionada.";
-            statusLog.style.color = "red";
-        } else {
-            statusLog.innerText = `Conectando a: ${STREAM_ID}...`;
-
-            // O ID já vem correto do dashboard (ex: 'rua_mjpeg')
-            // Não adicione sufixos extras.
-            const streamUrl = `/api/stream.mjpeg?src=${STREAM_ID}`;
-            console.log("Player connecting to:", streamUrl);
-            img.src = streamUrl;
-
-            img.onload = () => {
-                statusLog.innerText = "Status: ONLINE (Vídeo Fluido)";
-                statusLog.style.color = "#0f0";
-            };
-
-            img.onerror = () => {
-                console.warn("Stream load failed.");
-                statusLog.innerText = "OFFLINE - Falha no Vídeo";
-                statusLog.style.color = "red";
-                // Esconde a imagem quebrada
-                img.style.display = 'none';
-
-                // Cria um elemento visual de erro no centro se não existir
-                if (!document.getElementById('err-msg')) {
-                    const msg = document.createElement('div');
-                    msg.id = 'err-msg';
-                    msg.innerHTML = '<div style="font-size:3rem">🔌</div><div>OFFLINE</div>';
-                    msg.style.position = 'absolute';
-                    msg.style.top = '50%';
-                    msg.style.left = '50%';
-                    msg.style.transform = 'translate(-50%, -50%)';
-                    msg.style.textAlign = 'center';
-                    msg.style.color = '#555';
-                    document.body.appendChild(msg);
-                }
-            };
-        }
-
-        // Snapshot fallback removido para evitar loop de erro.
-        // Se o stream falhar, é melhor mostrar Offline do que spammar o servidor.
-
         if (navigator.serviceWorker) {
-            navigator.serviceWorker.register('/sw.js');
+            // Desativado no Player para evitar conflito de cache com stream infinito
+            // navigator.serviceWorker.register('/sw.js');
         }
+
+        // Delay stream load to prevent "infinite loading" state in some browsers
+        setTimeout(() => {
+            if (!STREAM_ID) {
+                statusLog.innerText = "Erro: Nenhuma câmera selecionada.";
+                statusLog.style.color = "red";
+            } else {
+                statusLog.innerText = `Conectando a: ${STREAM_ID}...`;
+
+                const streamUrl = `/api/stream.mjpeg?src=${encodeURIComponent(STREAM_ID)}`;
+                console.log("Player connecting to:", streamUrl);
+                img.src = streamUrl;
+
+                img.onload = () => {
+                    statusLog.innerText = "Status: ONLINE (Vídeo Fluido)";
+                    statusLog.style.color = "#0f0";
+                };
+
+                img.onerror = () => {
+                    console.warn("Stream load failed.");
+                    statusLog.innerText = "OFFLINE - Falha no Vídeo";
+                    statusLog.style.color = "red";
+                    img.style.display = 'none';
+                    if (!document.getElementById('err-msg')) {
+                        const msg = document.createElement('div');
+                        msg.id = 'err-msg';
+                        msg.innerHTML = '<div style="font-size:3rem">🔌</div><div>OFFLINE</div>';
+                        msg.style.position = 'absolute';
+                        msg.style.top = '50%';
+                        msg.style.left = '50%';
+                        msg.style.transform = 'translate(-50%, -50%)';
+                        msg.style.textAlign = 'center';
+                        msg.style.color = '#555';
+                        document.body.appendChild(msg);
+                    }
+                };
+            }
+        }, 500);
     </script>
 </body>
 

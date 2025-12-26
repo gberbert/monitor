@@ -5,7 +5,7 @@ log:
   streams: error
 
 ffmpeg:
-  bin: "C:/antigravity_www/ffmpeg.exe"
+  bin: "ffmpeg.exe"
 
 api:
   listen: ":1984"
@@ -23,20 +23,20 @@ streams:
   src_12d71240: rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0
   src_c91a292c: rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1
 
-  piscina: ffmpeg:src_5187bd74#video=h264#vf=scale=1280:720
+  piscina: ffmpeg:src_5187bd74#video=h264#audio=aac#vf=scale=1280:720
   piscina_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_5187bd74" -vf "scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
 
-  rua: ffmpeg:src_12d71240#video=h264#vf=crop=in_w:in_h/2:0:0,scale=1280:720
+  rua: ffmpeg:src_12d71240#video=h264#audio=aac#vf=crop=in_w:in_h/2:0:0,scale=1280:720
   rua_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_12d71240" -vf "crop=in_w:in_h/2:0:0,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
 
-  varanda: ffmpeg:src_c91a292c#video=h264#vf=crop=in_w:in_h/2:0:0,scale=1280:720
+  varanda: ffmpeg:src_c91a292c#video=h264#audio=aac#vf=crop=in_w:in_h/2:0:0,scale=1280:720
   varanda_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_c91a292c" -vf "crop=in_w:in_h/2:0:0,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
 
-  rua_base: ffmpeg:src_12d71240#video=h264#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
+  rua_base: ffmpeg:src_12d71240#video=h264#audio=aac#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
   rua_base_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_12d71240" -vf "crop=in_w:in_h/2:0:in_h/2,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
 
-  varanda_base: ffmpeg:src_c91a292c#video=h264#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
+  varanda_base: ffmpeg:src_c91a292c#video=h264#audio=aac#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
   varanda_base_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_c91a292c" -vf "crop=in_w:in_h/2:0:in_h/2,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
 
-  rua_2: ffmpeg:src_12d71240#video=h264#vf=crop=in_w:in_h/3:0:2*in_h/3,scale=1280:720
+  rua_2: ffmpeg:src_12d71240#video=h264#audio=aac#vf=crop=in_w:in_h/3:0:2*in_h/3,scale=1280:720
   rua_2_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_12d71240" -vf "crop=in_w:in_h/3:0:2*in_h/3,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -

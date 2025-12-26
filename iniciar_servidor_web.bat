@@ -7,7 +7,7 @@
 cd /d "%~dp0"
 
 :: 2. Ensure Dependencies (Quiet Mode)
-pip install flask requests >nul 2>&1
+pip install flask requests waitress
 
 :: 2.1 Sync Cameras from DB to Config
 echo [AUTO] Sincronizando cameras do Banco de Dados...
