@@ -539,6 +539,33 @@
             </div>
 
             <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Stream URL (RTSP
+                    Manual)</label>
+
+                <!-- Main Input -->
+                <input type="text" id="editUrl" placeholder="rtsp://..."
+                    style="width:100%; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px; margin-bottom:5px">
+
+                <!-- Suggestions Dropdown -->
+                <select id="urlSuggestions" onchange="document.getElementById('editUrl').value = this.value"
+                    style="width:100%; padding:6px; background:#333; border:1px solid #555; color:#ccc; border-radius:4px; font-size:0.85rem">
+                    <option value="">-- Selecione uma sugestão ou digite acima --</option>
+                    <!-- Populated via JS -->
+                </select>
+
+                <div style="font-size:0.75rem; color:#666; margin-top:2px;">Se vazio, será gerado via autodescoberta.
+                </div>
+            </div>
+
+            <!-- TIMEOUT FIELD -->
+            <div class="input-group" style="margin-bottom:15px">
+                <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Timeout de Conexão
+                    (Segundos)</label>
+                <input type="number" id="editTimeout" value="25" min="5" max="60"
+                    style="width:100px; padding:8px; background:#222; border:1px solid #444; color:white; border-radius:4px;">
+            </div>
+
+            <div class="input-group" style="margin-bottom:15px">
                 <label style="display:block; color:#aaa; font-size:0.8rem; margin-bottom:5px">Modo de Exibição
                     (Corte)</label>
                 <select id="editCrop"
@@ -658,14 +685,13 @@
                     mediaContent = offlineHtml;
                 }
 
-                // Overlay HTML
                 const overlayHtml = `
                     <div class="camera-overlay">
                         <div class="camera-title">
                             ${cam.name} 
                             <span id="status-${streamKey || 'off'}" class="status-dot" style="float:right; color:${isOnline ? '#26a69a' : '#cf6679'}">●</span>
                         </div>
-                        <div class="config-btn" onclick="event.stopPropagation(); openConfig('${cam.mac}', '${cam.name}', '${cam.ip || ''}', '${cam.username || ''}', '${cam.password || ''}', ${cam.crop_mode || 0})">⚙️</div>
+                        <div class="config-btn" onclick="event.stopPropagation(); openConfig('${cam.mac}', '${cam.name}', '${cam.ip || ''}', '${cam.username || ''}', '${cam.password || ''}', ${cam.crop_mode || 0}, '${cam.rtsp_url || ''}', ${cam.timeout || 25})">⚙️</div>
                     </div>
                 `;
 
@@ -736,7 +762,7 @@
         // function startReload(streamKey, baseUrl) { ... } (REMOVED logic to prevent loop)
 
         // --- FUNCÕES DO MÓDAL DE CONFIGURAÇÃO ---
-        function openConfig(mac, name, ip, user, pass, cropMode) {
+        function openConfig(mac, name, ip, user, pass, cropMode, url, timeout) {
             window.event.stopPropagation();
 
             // MODO EDIÇÃO
@@ -752,6 +778,8 @@
             document.getElementById('editUser').value = user;
             document.getElementById('editPass').value = pass;
             document.getElementById('editCrop').value = cropMode || 0;
+            document.getElementById('editUrl').value = url || '';
+            document.getElementById('editTimeout').value = timeout || 25;
 
             const stat = document.getElementById('ip-status');
             if (stat) stat.innerText = '';
@@ -776,6 +804,8 @@
             document.getElementById('editUser').value = 'admin';
             document.getElementById('editPass').value = '';
             document.getElementById('editCrop').value = '0';
+            document.getElementById('editUrl').value = '';
+            document.getElementById('editTimeout').value = '25';
 
             const stat = document.getElementById('ip-status');
             if (stat) stat.innerText = '';
@@ -796,7 +826,9 @@
                 ip: document.getElementById('editIp').value,
                 username: document.getElementById('editUser').value,
                 password: document.getElementById('editPass').value,
-                crop_mode: parseInt(document.getElementById('editCrop').value)
+                crop_mode: parseInt(document.getElementById('editCrop').value),
+                rtsp_url: document.getElementById('editUrl').value,
+                timeout: parseInt(document.getElementById('editTimeout').value)
             };
 
             try {
@@ -860,11 +892,14 @@
             stat.innerText = 'Testando RTSP...';
             stat.style.color = '#aaa';
 
+            const url = document.getElementById('editUrl').value;
+            const timeout = parseInt(document.getElementById('editTimeout').value) || 25;
+
             try {
                 const res = await fetch('/api/check_login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ip, username: user, password: pass })
+                    body: JSON.stringify({ ip, username: user, password: pass, url: url, timeout: timeout })
                 });
                 const data = await res.json();
                 if (data.ok) {

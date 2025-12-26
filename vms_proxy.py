@@ -88,20 +88,30 @@ def get_db_cameras():
             # --- BUSCA INTELIGENTE DE STREAMS (ROBUST MATCHING) ---
             found_key = None
             
-            # 1. Normalização do Nome do Banco (Minúsculo, sem espaços)
+            # 1. Normalização do Nome do Banco (Minúsculo, sem espaços, SEM ACENTOS)
             import re
-            cam_name_clean = re.sub(r'[^a-z0-9]', '', cam_name.lower())
+            import unicodedata
+            
+            # Remove acentos (Portão -> Portao)
+            norm_name = unicodedata.normalize('NFKD', cam_name.lower()).encode('ASCII', 'ignore').decode('ASCII')
+            # Remove caracteres especiais
+            cam_name_clean = re.sub(r'[^a-z0-9]', '', norm_name)
             
             # Lista de chaves ativas no Go2RTC
             stream_keys = list(active_streams.keys())
             
             # ESTRATÉGIA A: Busca Exata (Nome Completo)
             # Prioriza versao _mjpeg se existir
+            # Gera versões limpas de "safe_name" usado no sync
+            safe_id_sync = re.sub(r'[^a-z0-9]', '_', norm_name).strip('_') # Simula o safe_name do sync (com underline)
+            
             candidates = [
-                f"{cam_name}_mjpeg",        # Ex: Varanda_mjpeg
-                cam_name,                   # Ex: Varanda
-                f"{cam_name_clean}_mjpeg",  # Ex: varanda_mjpeg
-                cam_name_clean              # Ex: varanda
+                f"{safe_id_sync}_mjpeg",     # Ex: portao_mjpeg
+                safe_id_sync,                # Ex: portao
+                f"{cam_name}_mjpeg",         # Ex: Varanda_mjpeg
+                cam_name,                    # Ex: Varanda
+                f"{cam_name_clean}_mjpeg",   # Ex: varandamjpeg
+                cam_name_clean               # Ex: varanda
             ]
             
             for cand in candidates:
@@ -191,7 +201,9 @@ def save_camera():
             mac = "MANUAL-" + str(uuid.uuid4())[:8].upper()
             
         # AUTO-GENERATE URL IF MISSING (Intelbras Standard)
-        stream_url = data.get('url', '')
+        # Check 'rtsp_url' first (new default), then 'url' (legacy)
+        stream_url = data.get('rtsp_url') or data.get('url', '')
+        
         if not stream_url and data.get('ip') and data.get('username'):
             # Default to channel 1, subtype 0 (Main Stream)
             stream_url = f"rtsp://{data.get('username')}:{data.get('password')}@{data.get('ip')}:554/cam/realmonitor?channel=1&subtype=0"
@@ -204,7 +216,8 @@ def save_camera():
             data.get('username'),
             data.get('password'),
             stream_url,
-            data.get('crop_mode', 0)
+            data.get('crop_mode', 0),
+            data.get('timeout', 25)
         )
         
         # Trigger Config Sync
@@ -240,29 +253,57 @@ def check_ip():
 @app.route('/api/check_login', methods=['POST'])
 def check_login():
     import subprocess
+    import shutil
     data = request.json
+    print(f"[DEBUG] check_login payload: {data}") # LOG PAYLOAD to debug
+    
     ip = data.get('ip')
     user = data.get('username')
     pwd = data.get('password')
     
-    # 1. Tentar Intelbras Substream (Leve)
-    # 2. Tentar Raiz
-    test_urls = [
-         f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=1&subtype=1",
-         f"rtsp://{user}:{pwd}@{ip}:554/"
+    # 1. Se usuario mandou URL manual (da UI de edição), TESTA SÓ ELA!
+    manual_url = data.get('url')
+    
+    # TIMEOUT: Pega do request ou usa 20s padrão (segurança)
+    timeout_val = int(data.get('timeout', 20)) 
+    
+    test_urls = []
+    if manual_url:
+        print(f"[DEBUG] Using Manual URL: {manual_url}")
+        test_urls.append(manual_url)
+    else:
+        # Só usa fallbacks se NÃO houver manual
+        print("[DEBUG] Using Auto Discovery URLs")
+        test_urls.extend([
+              f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=1&subtype=1",
+              f"rtsp://{user}:{pwd}@{ip}:554/"
+        ])
+    
+    # Buscar FFmpeg em varios locais
+    candidates = [
+        shutil.which("ffmpeg"),
+        os.path.join(os.getcwd(), "go2rtc_bin", "ffmpeg.exe"),
+        "C:/antigravity_www/ffmpeg.exe",
+        "ffmpeg"
     ]
     
-    ffmpeg_path = "C:/antigravity_www/ffmpeg.exe"
-    if not os.path.exists(ffmpeg_path): ffmpeg_path = "ffmpeg"
-
+    ffmpeg_path = None
+    for cand in candidates:
+        if cand and (os.path.exists(cand) or (cand == "ffmpeg" and shutil.which(cand))):
+            ffmpeg_path = cand
+            break
+            
+    if not ffmpeg_path:
+         return jsonify({"ok": False, "error": "FFmpeg não encontrado no sistema"}), 500
+    
     last_error = "Falha Geral"
     
     for url in test_urls:
         try:
             # Teste rápido: conectar e ler info
             cmd = [ffmpeg_path, "-hide_banner", "-rtsp_transport", "tcp", "-i", url, "-t", "0.5", "-f", "null", "-"]
-            # Timeout curto
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4)
+            # Timeout DINAMICO
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_val)
             
             if result.returncode == 0:
                 return jsonify({"ok": True, "msg": "Conectado!"})
@@ -270,8 +311,10 @@ def check_login():
             err = result.stderr.decode('utf-8', errors='ignore')
             if "401 Unauthorized" in err:
                 return jsonify({"ok": False, "error": "Senha Incorreta (401)"})
-            last_error = "Sem resposta ou erro de conexão"
+            last_error = f"Erro de conexão (Código {result.returncode})"
             
+        except subprocess.TimeoutExpired:
+            last_error = f"Timeout ({timeout_val}s) - A câmera demorou muito para responder."
         except Exception as e:
             last_error = str(e)
             

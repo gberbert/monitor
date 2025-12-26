@@ -44,6 +44,12 @@ def init_db():
         except:
             pass
 
+        # Migration: timeout para conexao RTSP
+        try:
+            c.execute("ALTER TABLE cameras ADD COLUMN timeout INTEGER DEFAULT 25")
+        except:
+            pass
+
         # Tabela de Usuarios
         c.execute('''
             CREATE TABLE IF NOT EXISTS users (
@@ -182,10 +188,10 @@ def migrate_from_json():
     except Exception as e:
         print(f"Erro na migracao: {e}")
 
-def upsert_camera(mac, name, ip, user, password, url, crop_mode=0):
+def upsert_camera(mac, name, ip, user, password, url, crop_mode=0, timeout=25):
     """Insere ou Atualiza uma câmera baseado no MAC"""
     mac = mac.strip().upper() 
-    print(f"DEBUG: DB UPSERT | MAC: {mac} | URL: {url} | CROP: {crop_mode}")
+    print(f"DEBUG: DB UPSERT | MAC: {mac} | URL: {url} | CROP: {crop_mode} | TIMEOUT: {timeout}")
     
     with db_lock:
         conn = get_connection()
@@ -199,15 +205,15 @@ def upsert_camera(mac, name, ip, user, password, url, crop_mode=0):
             # Actually, the desktop app sets crop_mode, so we should update it.
             c.execute('''
                 UPDATE cameras 
-                SET ip = ?, username = ?, password = ?, stream_url = ?, crop_mode = ?, last_seen = CURRENT_TIMESTAMP
+                SET ip = ?, username = ?, password = ?, stream_url = ?, crop_mode = ?, timeout = ?, last_seen = CURRENT_TIMESTAMP
                 WHERE mac = ?
-            ''', (ip, user, password, url, crop_mode, mac))
+            ''', (ip, user, password, url, crop_mode, timeout, mac))
         else:
             # New camera gets rank 999 (bottom)
             c.execute('''
-                INSERT INTO cameras (mac, name, ip, username, password, stream_url, crop_mode, display_rank)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 999)
-            ''', (mac, name, ip, user, password, url, crop_mode))
+                INSERT INTO cameras (mac, name, ip, username, password, stream_url, crop_mode, timeout, display_rank)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 999)
+            ''', (mac, name, ip, user, password, url, crop_mode, timeout))
             
         conn.commit()
         conn.close()
@@ -246,9 +252,12 @@ def get_all_cameras():
         # Fallback seguro se a coluna nao existir na row retornada (caso raro de cache)
         crop = 0
         rank = 999
+        timeout = 25
         try: crop = r['crop_mode']
         except: pass
         try: rank = r['display_rank']
+        except: pass
+        try: timeout = r['timeout'] if r['timeout'] else 25
         except: pass
         
         cameras.append({
@@ -257,9 +266,10 @@ def get_all_cameras():
             "ip": r["ip"],
             "username": r["username"],
             "password": r["password"],
-            "url": r["stream_url"],
+            "rtsp_url": r["stream_url"],
             "crop_mode": crop,
-            "rank": rank
+            "rank": rank,
+            "timeout": timeout
         })
     return cameras
 
