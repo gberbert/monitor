@@ -27,4 +27,4 @@ A cada nova interação, antes de propor qualquer solução, você deve:
 - Analise o estado atual do repositório.
 - Verifique a última entrada no `.agent_memory_rag.md`.
 - Execute a tarefa priorizando a integridade do sistema.
-- Atualize o log RAG com o novo status.
+- Atualize o log RAG com o novo status, se der erro retente a atualização até conseguir, não é aceitavel não atualizar o sistema RAG.

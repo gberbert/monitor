@@ -25,19 +25,25 @@ streams:
   src_14ad25e1: rtsp://admin:viguera2001@192.168.3.21:554/cam/realmonitor?channel=1&subtype=0
 
   piscina: ffmpeg:src_5187bd74#video=h264#vf=scale=1280:720
-  piscina_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_5187bd74" -vf "scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
+  piscina_mjpeg: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_5187bd74" -vf "scale=640:360" -r 15 -c:v mjpeg -an -f mjpeg -
+  piscina_hd: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_5187bd74" -vf "scale=1280:720" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -
 
   rua: ffmpeg:src_12d71240#video=h264#vf=crop=in_w:in_h/2:0:0,scale=1280:720
-  rua_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_12d71240" -vf "crop=in_w:in_h/2:0:0,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
+  rua_mjpeg: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_12d71240" -vf "crop=in_w:in_h/2:0:0,scale=640:360" -r 15 -c:v mjpeg -an -f mjpeg -
+  rua_hd: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_12d71240" -vf "crop=in_w:in_h/2:0:0,scale=1280:720" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -
 
   varanda: ffmpeg:src_c91a292c#video=h264#vf=crop=in_w:in_h/2:0:0,scale=1280:720
-  varanda_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_c91a292c" -vf "crop=in_w:in_h/2:0:0,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
+  varanda_mjpeg: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_c91a292c" -vf "crop=in_w:in_h/2:0:0,scale=640:360" -r 15 -c:v mjpeg -an -f mjpeg -
+  varanda_hd: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_c91a292c" -vf "crop=in_w:in_h/2:0:0,scale=1280:720" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -
 
   rua_base: ffmpeg:src_12d71240#video=h264#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
-  rua_base_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_12d71240" -vf "crop=in_w:in_h/2:0:in_h/2,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
+  rua_base_mjpeg: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_12d71240" -vf "crop=in_w:in_h/2:0:in_h/2,scale=640:360" -r 15 -c:v mjpeg -an -f mjpeg -
+  rua_base_hd: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_12d71240" -vf "crop=in_w:in_h/2:0:in_h/2,scale=1280:720" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -
 
   varanda_base: ffmpeg:src_c91a292c#video=h264#vf=crop=in_w:in_h/2:0:in_h/2,scale=1280:720
-  varanda_base_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_c91a292c" -vf "crop=in_w:in_h/2:0:in_h/2,scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
+  varanda_base_mjpeg: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_c91a292c" -vf "crop=in_w:in_h/2:0:in_h/2,scale=640:360" -r 15 -c:v mjpeg -an -f mjpeg -
+  varanda_base_hd: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_c91a292c" -vf "crop=in_w:in_h/2:0:in_h/2,scale=1280:720" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -
 
   portao: ffmpeg:src_14ad25e1#video=h264#vf=scale=1280:720
-  portao_mjpeg: exec:ffmpeg -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_14ad25e1" -vf "scale=640:360" -r 8 -c:v mjpeg -an -f mjpeg -
+  portao_mjpeg: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_14ad25e1" -vf "scale=640:360" -r 15 -c:v mjpeg -an -f mjpeg -
+  portao_hd: exec:"C:/Users/K/OneDrive/Documentos/PROJETOS ANTIGRAVITY/monitor/go2rtc_bin/ffmpeg.exe" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_14ad25e1" -vf "scale=1280:720" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -

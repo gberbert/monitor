@@ -687,7 +687,11 @@
 
                 // VOLTANDO AO PADRÃO PROXY PARA ESTABILIDADE
                 // O bypass direto na porta 1984 pode falhar se firewall bloquear
-                let mjpegSrc = `/api/stream.mjpeg?src=${streamKey}`;
+                // HYBRID MODE: Direct Local (HD/Fast) vs Proxy Remote (Compatible)
+                const isLocalIP = ['localhost', '127.0.0.1'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+                let mjpegSrc = isLocalIP
+                    ? `http://${window.location.hostname}:1984/api/stream.mjpeg?src=${streamKey}`
+                    : `/api/stream.mjpeg?src=${streamKey}`;
 
                 let mediaContent = '';
                 if (isOnline) {

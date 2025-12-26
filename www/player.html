@@ -28,6 +28,12 @@
             z-index: 10;
             display: flex;
             justify-content: space-between;
+            align-items: center;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
         }
 
         .back-btn {
@@ -35,8 +41,28 @@
             text-decoration: none;
             font-weight: bold;
             background: #333;
-            padding: 5px 10px;
+            padding: 8px 12px;
             border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .hd-btn {
+            background: #444;
+            color: #aaa;
+            border: 1px solid #555;
+            transition: all 0.2s;
+        }
+
+        .hd-btn.active {
+            background: #26a69a;
+            color: white;
+            border-color: #26a69a;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(38, 166, 154, 0.5);
         }
 
         video {
@@ -62,11 +88,15 @@
 
     <div class="top-bar">
         <a href="dashboard.html" class="back-btn">⬅ Voltar</a>
-        <button onclick="document.getElementById('mjpeg-stream').requestFullscreen()" class="back-btn">⛶
-            Fullscreen</button>
+        <div class="actions">
+            <!-- HD Toggle Button -->
+            <button id="btn-hd" onclick="toggleHD()" class="back-btn hd-btn">HD</button>
+            <button onclick="document.getElementById('mjpeg-stream').requestFullscreen()" class="back-btn">⛶
+                Full</button>
+        </div>
     </div>
 
-    <!-- MJPEG Player (Robust over HTTP Tunnels) -->
+    <!-- MJPEG Player -->
     <div style="display: flex; justify-content: center; align-items: center; height: 100%; background: #000;">
         <img id="mjpeg-stream" style="max-width: 100%; max-height: 100%; object-fit: contain;"
             alt="Carregando Video...">
@@ -82,51 +112,109 @@
 
         const img = document.getElementById('mjpeg-stream');
         const statusLog = document.getElementById('status-log');
+        const btnHd = document.getElementById('btn-hd');
         const urlParams = new URLSearchParams(window.location.search);
-        let STREAM_ID = urlParams.get('src');
 
-        if (navigator.serviceWorker) {
-            // Desativado no Player para evitar conflito de cache com stream infinito
-            // navigator.serviceWorker.register('/sw.js');
+        // Base Stream Key (e.g., 'camera_mjpeg' or 'camera_hd')
+        let currentKey = urlParams.get('src');
+        let isHd = false;
+
+        // Determine initial state
+        if (currentKey && currentKey.endsWith('_hd')) {
+            isHd = true;
+            updateBtnState();
         }
 
-        // Delay stream load to prevent "infinite loading" state in some browsers
+        // Direct Connection Logic (Production Port 1984)
+        // Hybrid Logic: Local -> Direct 1984 | Remote -> Proxy
+        const isLocalIP = ['localhost', '127.0.0.1'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+        const BASE_HOST = isLocalIP ? `http://${window.location.hostname}:1984` : '';
+
+        function updateBtnState() {
+            if (isHd) {
+                btnHd.innerText = "HD: ON";
+                btnHd.classList.add('active');
+            } else {
+                btnHd.innerText = "HD: OFF";
+                btnHd.classList.remove('active');
+            }
+        }
+
+        function loadStream(key) {
+            statusLog.innerText = `Conectando a: ${key}...`;
+
+            // Force stop previous
+            img.src = "";
+
+            // Construct direct URL
+            const streamUrl = `${BASE_HOST}/api/stream.mjpeg?src=${encodeURIComponent(key)}`;
+            console.log("Player connecting to:", streamUrl);
+
+            // Small timeout to ensure socket teardown
+            setTimeout(() => {
+                img.src = streamUrl;
+            }, 50);
+
+            // Update URL param without reload (for sharing/refresh)
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('src', key);
+            window.history.pushState({}, '', newUrl);
+        }
+
+        function toggleHD() {
+            if (!currentKey) return;
+
+            // Logic:
+            // SD Key: {name}_mjpeg
+            // HD Key: {name}_hd
+
+            let newKey = "";
+            if (isHd) {
+                // Switch to SD
+                // Replace '_hd' with '_mjpeg'
+                newKey = currentKey.replace('_hd', '_mjpeg');
+                isHd = false;
+            } else {
+                // Switch to HD
+                // Replace '_mjpeg' with '_hd'
+                if (currentKey.endsWith('_mjpeg')) {
+                    newKey = currentKey.replace('_mjpeg', '_hd');
+                } else {
+                    // Fallback append if naming scheme differs? 
+                    // Assuming standard naming from sync_test.py
+                    newKey = currentKey + "_hd";
+                }
+                isHd = true;
+            }
+
+            currentKey = newKey;
+            updateBtnState();
+            loadStream(newKey);
+        }
+
+        // Event Handlers
+        img.onload = () => {
+            statusLog.innerText = isHd ? "Status: ONLINE (HD 720p)" : "Status: ONLINE (SD 360p)";
+            statusLog.style.color = "#0f0";
+        };
+
+        img.onerror = () => {
+            console.warn("Stream load failed.");
+            statusLog.innerText = "Falha no Stream (Tentando reconectar...)";
+            statusLog.style.color = "orange";
+            // Simple retry logic could go here
+        };
+
+        // Init
         setTimeout(() => {
-            if (!STREAM_ID) {
+            if (!currentKey) {
                 statusLog.innerText = "Erro: Nenhuma câmera selecionada.";
                 statusLog.style.color = "red";
             } else {
-                statusLog.innerText = `Conectando a: ${STREAM_ID}...`;
-
-                const streamUrl = `/api/stream.mjpeg?src=${encodeURIComponent(STREAM_ID)}`;
-                console.log("Player connecting to:", streamUrl);
-                img.src = streamUrl;
-
-                img.onload = () => {
-                    statusLog.innerText = "Status: ONLINE (Vídeo Fluido)";
-                    statusLog.style.color = "#0f0";
-                };
-
-                img.onerror = () => {
-                    console.warn("Stream load failed.");
-                    statusLog.innerText = "OFFLINE - Falha no Vídeo";
-                    statusLog.style.color = "red";
-                    img.style.display = 'none';
-                    if (!document.getElementById('err-msg')) {
-                        const msg = document.createElement('div');
-                        msg.id = 'err-msg';
-                        msg.innerHTML = '<div style="font-size:3rem">🔌</div><div>OFFLINE</div>';
-                        msg.style.position = 'absolute';
-                        msg.style.top = '50%';
-                        msg.style.left = '50%';
-                        msg.style.transform = 'translate(-50%, -50%)';
-                        msg.style.textAlign = 'center';
-                        msg.style.color = '#555';
-                        document.body.appendChild(msg);
-                    }
-                };
+                loadStream(currentKey);
             }
         }, 500);
+
     </script>
 </body>
 
