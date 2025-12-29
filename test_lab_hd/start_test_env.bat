@@ -12,6 +12,7 @@ python sync_test.py
 
 :: 3. Start Test Go2RTC (Ports 1985/8556)
 echo [TEST] Starting Go2RTC...
+set "PATH=%PATH%;%~dp0..\go2rtc_bin"
 start "" /MIN ..\go2rtc_bin\go2rtc.exe -config go2rtc_test.yaml
 
 :: Wait a moment for Go2RTC
@@ -20,6 +21,10 @@ timeout /t 5 /nobreak >nul
 :: 4. Start Test VMS Proxy (Port 5001)
 echo [TEST] Starting VMS Proxy...
 start "" /MIN python vms_proxy_test.py
+
+:: 5. Start Test Recorder
+echo [TEST] Starting Recorder...
+start "" /MIN python recorder_test.py
 
 echo.
 echo ==================================================

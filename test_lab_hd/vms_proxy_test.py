@@ -5,7 +5,9 @@ import json
 from flask import Flask, request, Response, send_from_directory, jsonify
 
 # Config - Pasta onde estao os arquivos do site (Login, Dashboard, etc)
-STATIC_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'www')
+# Config - Pasta onde estao os arquivos do site (Login, Dashboard, etc)
+# APONTANDO PARA O WWW DE PRODUÇÃO PARA TER O FRONTEND ATUALIZADO
+STATIC_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'www')
 # Endereco do Go2RTC local (Video)
 GO2RTC_API = "http://127.0.0.1:1985"
 
@@ -35,6 +37,13 @@ def serve_sw():
 @app.route('/placeholder_error.png')
 def serve_icon():
     return send_from_directory(STATIC_FOLDER, 'placeholder_error.png', mimetype='image/png')
+
+# ROTA ESPECIFICA PARA O PLAYER EM DESENVOLVIMENTO (SOBREPOE O WWW)
+@app.route('/timeline_demo.html')
+def serve_timeline():
+    # Serve o arquivo corrigido que esta em test_lab_hd/nvr_module
+    local_nvr_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'nvr_module')
+    return send_from_directory(local_nvr_path, 'timeline_demo.html')
 # ---------------------------
 
 @app.route('/api/info')
@@ -57,8 +66,11 @@ def get_info():
 
 # Import Database Logic from Subfolder
 import sys
+# Import Database Logic from Subfolder (Production DB)
+import sys
 try:
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'desktop_app'))
+    # Point to the real desktop_app folder in root
+    sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'desktop_app'))
     import database
     # CRITICAL: Initialize DB to run pending migrations (add columns)
     database.init_db()
@@ -503,6 +515,100 @@ def proxy_api(subpath):
     except Exception as e:
         print(f"[PROXY ERROR] {e}")
         return str(e), 500
+
+# --- MOCK NVR API FOR TEST LAB (Port 5001) ---
+# O Player timeline_demo.html espera essas rotas para funcionar
+
+STORAGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'storage_test')
+
+@app.route('/api/nvr/timeline')
+def get_timeline():
+    # Helper para listar arquivos da regra de armazenamento
+    # Estrutura esperada: storage_test/camera_name/YYYY-MM-DD/HH/MM.mp4 ?
+    # OU storage_test/camera_name/output_YYYY-MM-DD_HH-MM-SS.mp4 (Formato do Recorder Test)
+    
+    # O recorder_test.py usa:
+    # filename = f"{clean_name}_{timestamp}.mp4"
+    # path = os.path.join(cam_path, filename)
+    # Ex: storage_test/varanda/varanda_20251228_092000.mp4
+    
+    camera = request.args.get('camera')
+    start_ts = int(request.args.get('start', 0))
+    end_ts = int(request.args.get('end', 9999999999))
+    
+    if not camera: return jsonify([])
+    
+    cam_dir = os.path.join(STORAGE_DIR, camera)
+    if not os.path.exists(cam_dir):
+        return jsonify([])
+        
+    segments = []
+    try:
+        files = sorted(os.listdir(cam_dir))
+        for f in files:
+            if not f.endswith('.mp4'): continue
+            
+            # Parse filename: name_YYYYMMDD_HHMMSS.mp4
+            # Ex: varanda_20251228_092641.mp4
+            # Split pelo ultimo underscore
+            try:
+                # varanda_base_2025... -> rsplit('_', 1) => ['varanda_base', '2025...']
+                parts = f.rsplit('_', 1)
+                if len(parts) < 2: continue
+                date_part = parts[1].replace('.mp4', '') # 20251228092641 (Se recorder usar esse formato)
+                
+                # O recorder_test.py usa: time.strftime("%Y%m%d_%H%M%S") -> 20251228_092641
+                # Entao filename: varanda_20251228_092641.mp4
+                
+                # Re-verificando formato do recorder_test.py:
+                # filename = f"{timestamp}.mp4" NA NO PROMPT ANTERIOR EU VI ISSO?
+                # VOU LISTAR NO PROXY DE TEST A LOGICA.
+                # Assumindo formato YYYYMMDD_HHMMSS
+                
+                from datetime import datetime
+                # Tenta parsear data
+                # Opcao A: YYYYMMDD_HHMMSS (15 chars)
+                dt_str = date_part
+                if len(dt_str) == 15 and '_' in dt_str:
+                     dt = datetime.strptime(dt_str, "%Y%m%d_%H%M%S")
+                # Opcao B: YYYY-MM-DD_HH-MM-SS (19 chars)
+                elif len(dt_str) == 19 and '-' in dt_str:
+                     dt = datetime.strptime(dt_str, "%Y-%m-%d_%H-%M-%S")
+                # Opcao C: Fallback Filesystem
+                else:
+                     fpath = os.path.join(cam_dir, f)
+                     dt = datetime.fromtimestamp(os.path.getmtime(fpath))
+
+                ts = int(dt.timestamp())
+                
+                # Check range
+                if start_ts <= ts <= end_ts:
+                    # Duration? Mock ou ler ffprobe?
+                    # Mock 60s ou size based
+                    duration = 60 # Default
+                    size = os.path.getsize(os.path.join(cam_dir, f))
+                    # Aprox bitrate 1mbps -> size / 125000
+                    if size > 0: duration = size / 200000 # Chute
+                    
+                    segments.append({
+                        "start": ts,
+                        "end": ts + duration,
+                        "filename": f # Filename relativo a pasta da camera
+                    })
+            except Exception as e:
+                pass
+                
+    except Exception as e:
+        print(f"Timeline error: {e}")
+        
+    return jsonify(segments)
+
+@app.route('/api/nvr/video/<path:filepath>')
+def serve_video_file(filepath):
+    # filepath ex: varanda/varanda_2025...mp4
+    # Serve do STORAGE_DIR
+    return send_from_directory(STORAGE_DIR, filepath)
+
 
 if __name__ == '__main__':
     print(f"--- ANTIGRAVITY VMS PROXY [TEST ENV HD] ---")

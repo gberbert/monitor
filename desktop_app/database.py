@@ -50,6 +50,16 @@ def init_db():
         except:
             pass
 
+        # Migration: Config NVR
+        try:
+            c.execute("ALTER TABLE cameras ADD COLUMN record_enabled INTEGER DEFAULT 1")
+        except:
+            pass
+        try:
+            c.execute("ALTER TABLE cameras ADD COLUMN retention_days INTEGER DEFAULT 7")
+        except:
+            pass
+
         # Tabela de Usuarios
         c.execute('''
             CREATE TABLE IF NOT EXISTS users (
@@ -72,6 +82,34 @@ def init_db():
         except:
             pass
 
+        # Tabela de Configuracoes Globais
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS config (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        ''')
+        # Defaults
+        c.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('storage_path', 'go2rtc_bin/storage')")
+        c.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('disk_quota_gb', '500')")
+
+        conn.commit()
+        conn.close()
+
+def get_config(key, default=None):
+    with db_lock:
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT value FROM config WHERE key = ?", (key,))
+        row = c.fetchone()
+        conn.close()
+        return row[0] if row else default
+
+def set_config(key, value):
+    with db_lock:
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, str(value)))
         conn.commit()
         conn.close()
 
@@ -188,10 +226,10 @@ def migrate_from_json():
     except Exception as e:
         print(f"Erro na migracao: {e}")
 
-def upsert_camera(mac, name, ip, user, password, url, crop_mode=0, timeout=25):
+def upsert_camera(mac, name, ip, user, password, url, crop_mode=0, timeout=25, record_enabled=1, retention_days=7):
     """Insere ou Atualiza uma câmera baseado no MAC"""
     mac = mac.strip().upper() 
-    print(f"DEBUG: DB UPSERT | MAC: {mac} | URL: {url} | CROP: {crop_mode} | TIMEOUT: {timeout}")
+    print(f"DEBUG: DB UPSERT | MAC: {mac} | URL: {url} | REC: {record_enabled}")
     
     with db_lock:
         conn = get_connection()
@@ -200,20 +238,18 @@ def upsert_camera(mac, name, ip, user, password, url, crop_mode=0, timeout=25):
         exists = c.fetchone()
         
         if exists:
-            # Update fields but PRESERVE display_rank
-            # Only update crop_mode if explicitly provided (assuming non-zero means intent, or just overwrite)
-            # Actually, the desktop app sets crop_mode, so we should update it.
+            # Update
             c.execute('''
                 UPDATE cameras 
-                SET ip = ?, username = ?, password = ?, stream_url = ?, crop_mode = ?, timeout = ?, last_seen = CURRENT_TIMESTAMP
+                SET ip = ?, username = ?, password = ?, stream_url = ?, crop_mode = ?, timeout = ?, record_enabled = ?, retention_days = ?, last_seen = CURRENT_TIMESTAMP
                 WHERE mac = ?
-            ''', (ip, user, password, url, crop_mode, timeout, mac))
+            ''', (ip, user, password, url, crop_mode, timeout, record_enabled, retention_days, mac))
         else:
-            # New camera gets rank 999 (bottom)
+            # New camera
             c.execute('''
-                INSERT INTO cameras (mac, name, ip, username, password, stream_url, crop_mode, timeout, display_rank)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 999)
-            ''', (mac, name, ip, user, password, url, crop_mode, timeout))
+                INSERT INTO cameras (mac, name, ip, username, password, stream_url, crop_mode, timeout, record_enabled, retention_days, display_rank)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 999)
+            ''', (mac, name, ip, user, password, url, crop_mode, timeout, record_enabled, retention_days))
             
         conn.commit()
         conn.close()
@@ -249,15 +285,21 @@ def get_all_cameras():
     
     cameras = []
     for r in rows:
-        # Fallback seguro se a coluna nao existir na row retornada (caso raro de cache)
+        # Fallback seguro
         crop = 0
         rank = 999
         timeout = 25
+        rec = 1
+        ret = 7
         try: crop = r['crop_mode']
         except: pass
         try: rank = r['display_rank']
         except: pass
         try: timeout = r['timeout'] if r['timeout'] else 25
+        except: pass
+        try: rec = r['record_enabled'] if r['record_enabled'] is not None else 1
+        except: pass
+        try: ret = r['retention_days'] if r['retention_days'] is not None else 7
         except: pass
         
         cameras.append({
@@ -269,7 +311,9 @@ def get_all_cameras():
             "rtsp_url": r["stream_url"],
             "crop_mode": crop,
             "rank": rank,
-            "timeout": timeout
+            "timeout": timeout,
+            "record_enabled": rec,
+            "retention_days": ret
         })
     return cameras
 

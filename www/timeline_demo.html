@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NVR Timeline Demo</title>
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            color: #eee;
+            font-family: 'Segoe UI', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 5px 15px;
+            background: #222;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 40px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #4CAF50;
+        }
+
+        .viewport {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .controls {
+            height: 180px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .timeline-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .time-labels {
+            height: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ccc;
+            background: #222;
+        }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .btn {
+            background: #333;
+            border: none;
+            color: white;
+            padding: 5px 15px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .btn:hover {
+            background: #444;
+        }
+
+        .btn-live {
+            background: #d32f2f;
+        }
+
+        /* Mobile Fixes */
+        @media (max-width: 600px) {
+            .header {
+                height: auto;
+                flex-wrap: wrap;
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .header h1 {
+                display: none;
+            }
+
+            .header>div {
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+            }
+
+            #camSelector {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <button class="btn" onclick="goBack()" style="margin-right:10px;">⬅ Voltar</button>
+        <h1 id="page-title" style="text-transform:capitalize;">Câmera</h1>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <!-- DATE FILTER -->
+            <div style="display:flex; align-items:center; background:#333; padding:2px 8px; border-radius:4px;">
+                <input type="date" id="datePicker"
+                    style="background:transparent; border:none; color:white; font-family:inherit; cursor:pointer;"
+                    onchange="handleDateFilter()">
+            </div>
+
+            <select id="camSelector" onchange="changeCam(this.value)"
+                style="padding:5px; background:#333; color:white; border:none;">
+                <!-- Options populated by JS -->
+            </select>
+            <button class="btn" style="background:#d32f2f;" onclick="goLive()">Ao Vivo</button>
+            <button class="btn" style="background:#1976D2;" onclick="forceReload()">🔄</button>
+        </div>
+    </div>
+
+    <div class="viewport" style="position:relative; overflow:hidden;">
+        <video id="player" controls autoplay style="width:100%; height:100%; object-fit:contain;"></video>
+        <button id="btn-play-overlay"
+            style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:3rem; background:none; border:none; color:white; opacity:0.8; cursor:pointer; display:none;">
+            ▶
+        </button>
+        <div id="hud">Aguardando dados...</div>
+    </div>
+
+    <div class="controls">
+        <div class="time-labels" style="display:flex; justify-content:space-between; align-items:center;">
+            <div id="zoom-controls" style="display:flex; align-items:center; gap:10px;">
+                <button onclick="prevSegment()" title="Arquivo Anterior" class="btn">⏮️</button>
+                <button onclick="nextSegment()" title="Próximo Arquivo" class="btn">⏭️</button>
+
+                <span style="color:#aaa; font-size:0.8rem; margin-left:15px;">Zoom:</span>
+                <!-- Slider: Esquerda (Min) = ViewWindow Pequeno (Zoom Alto) -->
+                <!-- Direita (Max) = ViewWindow Grande (Zoom Baixo) -->
+                <input type="range" id="zoomSlider" min="60" max="7200" step="60" value="1800"
+                    oninput="updateZoom(this.value)" style="width:150px; cursor:pointer;">
+
+                <!-- Dynamic Timestamp Display -->
+                <span id="timestamp-display" style="
+                    font-family:'Consolas', monospace; 
+                    font-size:1.1rem; 
+                    color:#4CAF50; 
+                    margin-left:20px; 
+                    border:1px solid #444; 
+                    padding:2px 8px; 
+                    background:#000;
+                    min-width: 180px;
+                    text-align:center;
+                ">--/--/---- --:--:--</span>
+            </div>
+            <!-- Labels ocultos conforme pedido anterior -->
+            <span id="lbl-start" style="display:none"></span>
+            <span id="lbl-center" style="display:none"></span>
+            <span id="lbl-end" style="display:none"></span>
+        </div>
+        <div class="timeline-container" id="timeline-box">
+            <canvas id="timeline"></canvas>
+            <div id="cursor"
+                style="position:absolute; top:0; bottom:0; width:1px; background:white; left:50%; pointer-events:none;">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Config
+        // API_URL moved to Global Config below
+        const urlParams = new URLSearchParams(window.location.search);
+        let CAMERA = urlParams.get('camera') || 'piscina';
+        let CROP = parseInt(urlParams.get('crop')) || 0;
+
+        // Update Title immediately
+        document.getElementById('page-title').innerText = "Câmera: " + CAMERA.charAt(0).toUpperCase() + CAMERA.slice(1);
+
+        // FIXED: Variáveis globais faltantes
+        let lastPlayTime = 0;
+        let freezeCounter = 0;
+
+        // Zoom Logic
+        function updateZoom(val) {
+            setZoom(parseInt(val));
+        }
+
+        function applyCrop() {
+            const v = document.getElementById('player');
+
+            // Reset
+            v.style.width = '100%';
+            v.style.height = '100%';
+            v.style.objectFit = 'contain';
+            v.style.transform = 'none';
+            v.style.transformOrigin = 'center center';
+
+            if (CROP === 1 || CROP === 2) {
+                console.log("Applying SMART SCALE CROP (Centered):", CROP);
+
+                // FINAL STRATEGY: Aspect Ratio "Window".
+                // 1. Force the video element to be a standard 16:9 box centered in the screen.
+                // 2. This ensures correct geometry on both Desktop (Wide) and Mobile (Letterbox).
+                // 3. Since the source video is stacked (tall, ~8:9), putting it into a 16:9 box with 'cover'
+                //    will cause it to fit the width and overflow the height significantly.
+                // 4. We use object-position to show ONLY the top or bottom half of that vertical overflow.
+
+                // FINAL REFINEMENT: Flexible Constraints.
+                // Use maxWidth/maxHeight with auto width/height and aspect-ratio.
+                // This allows the box to fit perfectly inside the viewport (Letterboxing) 
+                // without being forced to 100% width (which cuts off top/bottom on wide screens).
+
+                v.style.position = 'relative';
+                v.style.width = 'auto';  // Allow shrinking/growing based on constraints
+                v.style.height = 'auto';
+                v.style.maxWidth = '100%'; // Constrain to viewport
+                v.style.maxHeight = '100%';
+
+                v.style.aspectRatio = '16 / 9'; // Enforce 16:9 shape
+                v.style.margin = 'auto'; // Center in Flex container
+
+                v.style.objectFit = 'cover'; // Fill the 16:9 box with the source
+                v.style.transform = 'none';
+
+                if (CROP === 1) v.style.objectPosition = 'top center';
+                if (CROP === 2) v.style.objectPosition = 'bottom center';
+            }
+        }
+
+        // Listen to loadmetadata to ensure video dimensions are known?
+        // Transform works on the element box, safe to run early.
+        window.addEventListener('load', applyCrop);
+        // Also re-apply when video loads metadata just in case
+        document.getElementById('player').addEventListener('loadedmetadata', applyCrop);
+
+        // --- GLOBAL CONFIGURATION (TEST LAB vs PROD) ---
+        const isTestLab = window.location.port === '5001';
+
+        // UNIFIED PROXY ARCHITECTURE
+        // Agora o Proxy de Producao (5000) e o de Teste (5001) ambos suportam
+        // roteamento para a API NVR (/api/nvr e /video).
+        // Portanto, usamos sempre a origem atual. Isso habilita suporte a Cloudflare.
+        const API_URL = window.location.origin;
+
+        // Back Button Logic Global Function
+        function goBack() {
+            if (isTestLab) {
+                window.location.href = '/dashboard.html';
+            } else {
+                // Production: Use relative path to keep current origin/port (fixes Cloudflare/Reverse Proxy issues)
+                window.location.href = '/dashboard.html';
+            }
+        }
+
+        async function initCameras() {
+            try {
+                // Fetch cameras using correct API based on Env
+                // VMS API is usually on 5000 or same origin in Test
+                const vmsApiBase = isTestLab ? window.location.origin : `http://${window.location.hostname}:5000`;
+                const vmsUrl = `${vmsApiBase}/api/cameras`;
+                const r = await fetch(vmsUrl);
+                const cams = await r.json();
+
+                const sel = document.getElementById('camSelector');
+                sel.innerHTML = '';
+
+                cams.forEach(c => {
+                    // We need the SAFE name for NVR
+                    // Frontend helper
+                    const safe = c.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+                    const opt = document.createElement('option');
+                    opt.value = safe;
+                    opt.innerText = c.name;
+                    if (safe === CAMERA) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                console.error("Failed to load camera list", e);
+                // Keep default or show nothing
+            }
+        }
+
+        function changeCam(newVal) {
+            window.location.href = `?camera=${newVal}`;
+        }
+
+        initCameras();
+
+
+        // State
+        let segments = [];
+        let viewWindow = 1800; // Default 30 min
+        let centerTime = Math.floor(Date.now() / 1000);
+        let currentFileStart = 0;
+
+        const canvas = document.getElementById('timeline');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('player');
+        const hud = document.getElementById('hud');
+
+        // Global Sync Listener (Registered Once)
+        video.addEventListener('loadedmetadata', () => {
+            console.log(`[Video] Loaded Metadata. Duration: ${video.duration}`);
+
+            // Find segment matching currentFileStart with allowance for small floating point diff
+            const seg = segments.find(s => Math.abs(s.start - currentFileStart) < 0.5);
+
+            if (seg) {
+                const diff = Math.abs((seg.end - seg.start) - video.duration);
+                if (diff > 1.0) {
+                    console.log(`[Sync] Updating Segment Visual Duration from ${(seg.end - seg.start).toFixed(2)}s to ${video.duration.toFixed(2)}s`);
+                    seg.end = seg.start + video.duration;
+                    draw();
+                }
+            }
+        });
+
+        function setZoom(seconds) {
+            viewWindow = seconds;
+            draw();
+            // Highlight active button? (Optional UX polish)
+        }
+
+        // ... [Resize / FetchData kept same] ...
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const startVisible = centerTime - (viewWindow / 2);
+            const endVisible = centerTime + (viewWindow / 2);
+            const pxPerSec = canvas.width / viewWindow;
+
+            // Dynamic Grid Interval based on Zoom
+            let interval = 300; // default 5 min
+            if (viewWindow >= 3600) interval = 900; // 15 min for 1h+ view
+            if (viewWindow <= 1800) interval = 300; // 5 min for 30m view
+            if (viewWindow <= 600) interval = 60;   // 1 min for 10m view
+            if (viewWindow <= 60) interval = 10;    // 10 sec for 1m view
+
+            const firstMark = Math.floor(startVisible / interval) * interval;
+
+            ctx.fillStyle = '#666';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+
+            for (let t = firstMark; t < endVisible; t += interval) {
+                const x = (t - startVisible) * pxPerSec;
+
+                // Vertical Line
+                ctx.beginPath();
+                ctx.moveTo(x, 15);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+
+                // Label (HH:MM:SS if zoom is deep, else HH:MM)
+                const date = new Date(t * 1000);
+                let label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                if (viewWindow <= 60) {
+                    label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                }
+                ctx.fillText(label, x, 10);
+            }
+
+            // Draw Segments
+            segments.forEach(seg => {
+                if (seg.end < startVisible || seg.start > endVisible) return;
+                const x = (seg.start - startVisible) * pxPerSec;
+                const w = Math.max((seg.end - seg.start) * pxPerSec, 2);
+
+                ctx.fillStyle = (seg.type === 'motion') ? '#c62828' : '#2e7d32';
+                ctx.fillRect(x, 20, w, canvas.height - 40);
+            });
+
+            // Center Line (Cursor)
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        const container = document.getElementById('timeline-box');
+
+        // Init
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Mouse Drag Logic
+        let isDragging = false;
+        let lastX = 0;
+
+        container.addEventListener('mousedown', e => {
+            isDragging = true;
+            lastX = e.clientX;
+            video.pause(); // Pause while scrubbing
+        });
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                seekTo(centerTime, false); // Stay paused after seek
+            }
+        });
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            const dx = e.clientX - lastX;
+            lastX = e.clientX;
+
+            // Pixels to Seconds
+            const pxPerSec = canvas.width / viewWindow;
+            const dt = -dx / pxPerSec;
+
+            centerTime += dt;
+            draw();
+        });
+
+        container.addEventListener('dblclick', e => {
+            // Seek to click
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const pct = x / canvas.width;
+
+            const startVisible = centerTime - (viewWindow / 2);
+            const clickTime = startVisible + (pct * viewWindow);
+
+            seekTo(clickTime);
+        });
+
+        function resize() {
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+            draw();
+        }
+
+        async function fetchData(customStart, customEnd) {
+            // Load last 24h by default, or use custom range
+            let start, end;
+
+            if (customStart && customEnd) {
+                start = customStart;
+                end = customEnd;
+            } else {
+                const now = Math.floor(Date.now() / 1000);
+                start = now - 86400; // Last 24h
+                end = now;
+            }
+
+            console.log(`[API] Fetching timeline: ${new Date(start * 1000).toLocaleString()} -> ${new Date(end * 1000).toLocaleString()}`);
+            centerTime = (start + end) / 2; // Auto-center if not set? No, keep focus.
+            // If custom range (Date Filter), center was already set by handleDateFilter.
+
+            try {
+                // Determine API base - Relative or Absolute
+                // If running on 5000 (Proxy), use relative /api/nvr/timeline
+                // If running on 5002 (Test), use relative /api/nvr/timeline (served by flask on root?)
+                // Actually nvr_api_new.py serves /api/nvr/timeline.
+                // vms_proxy.py proxies /api/nvr/* -> nvr_api_new:5002/api/nvr/*
+                // So relative path works for BOTH!
+                const apiPath = '/api/nvr/timeline';
+
+                const res = await fetch(`${apiPath}?camera=${CAMERA}&start=${start}&end=${end}`);
+                if (!res.ok) throw new Error("API Status: " + res.status);
+
+                segments = await res.json();
+                console.log(`Loaded ${segments.length} segments.`);
+                draw();
+
+                // If loading default (auto-load), jump to NOW or end of today. 
+                // If filtering, stay on centerTime (noon).
+                if (!customStart) {
+                    // FORCE DEFAULT TO NOW (Users Request #2)
+                    const now = Math.floor(Date.now() / 1000);
+                    centerTime = now;
+                    draw();
+                } else if (customStart) {
+                    draw(); // Just redraw
+                }
+            } catch (e) {
+                console.error(e);
+                hud.innerText = `Erro API: ${e.message}`;
+                hud.style.color = 'red';
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const startVisible = centerTime - (viewWindow / 2);
+            const endVisible = centerTime + (viewWindow / 2);
+            const pxPerSec = canvas.width / viewWindow;
+
+            // Draw Grid (Every 30 min)
+            const interval = 1800; // 30 min
+            const firstMark = Math.floor(startVisible / interval) * interval;
+
+            ctx.fillStyle = '#666';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+
+            for (let t = firstMark; t < endVisible; t += interval) {
+                const x = (t - startVisible) * pxPerSec;
+
+                // Vertical Line
+                ctx.beginPath();
+                ctx.moveTo(x, 15);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+
+                // Label (HH:MM)
+                const date = new Date(t * 1000);
+                const label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                ctx.fillText(label, x, 10);
+            }
+
+            // Draw Segments
+            segments.forEach(seg => {
+                if (seg.end < startVisible || seg.start > endVisible) return;
+                const x = (seg.start - startVisible) * pxPerSec;
+                const w = Math.max((seg.end - seg.start) * pxPerSec, 2); // Min 2px width
+
+                // Color
+                ctx.fillStyle = '#2e7d32'; // Green
+                if (seg.type === 'motion') ctx.fillStyle = '#c62828'; // Red
+
+                // Draw Bar (Mid-height)
+                ctx.fillRect(x, 20, w, canvas.height - 40);
+            });
+
+            // Center Line (Cursor)
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Update Dynamic Timestamp (User Request)
+            const centerDate = new Date(centerTime * 1000);
+
+            // 1. Update Text Display
+            const tsEl = document.getElementById('timestamp-display');
+            if (tsEl) {
+                // Format: DD/MM/YYYY HH:MM:SS
+                const day = String(centerDate.getDate()).padStart(2, '0');
+                const month = String(centerDate.getMonth() + 1).padStart(2, '0');
+                const year = centerDate.getFullYear();
+                const h = String(centerDate.getHours()).padStart(2, '0');
+                const m = String(centerDate.getMinutes()).padStart(2, '0');
+                const s = String(centerDate.getSeconds()).padStart(2, '0');
+                tsEl.innerText = `${day}/${month}/${year} ${h}:${m}:${s}`;
+            }
+
+            // 2. Sync Date Picker (Only if day changes to avoid heavy DOM updates)
+            const dateInput = document.getElementById('datePicker');
+            if (dateInput) {
+                // Using local time YYYY-MM-DD
+                const yyyy = centerDate.getFullYear();
+                const mm = String(centerDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(centerDate.getDate()).padStart(2, '0');
+                const isoDate = `${yyyy}-${mm}-${dd}`;
+                if (dateInput.value !== isoDate) {
+                    dateInput.value = isoDate;
+                }
+            }
+        }
+
+        // === DATE FILTER LOGIC ===
+        // Set default date to today
+        const dateInput = document.getElementById('datePicker');
+        dateInput.valueAsDate = new Date();
+
+        function handleDateFilter() {
+            // Reload data for the selected day (00:00 to 23:59)
+            // Local Time midnight
+            if (!dateInput.value) return;
+
+            const selected = new Date(dateInput.value + 'T00:00:00');
+            const startOfDay = selected.getTime() / 1000;
+            const endOfDay = startOfDay + 86400;
+
+            console.log("Date Filter Changed:", selected.toLocaleDateString(), startOfDay, endOfDay);
+
+            // Update Center to noon of that day
+            centerTime = startOfDay + 43200;
+
+            fetchData(startOfDay, endOfDay);
+        }
+
+        function forceReload() {
+            handleDateFilter();
+        }
+
+        // === SEEK & PLAYBACK LOGIC ===
+        function seekTo(ts, autoPlay = true) {
+            console.log("Seeking to:", ts, "AutoPlay:", autoPlay);
+            centerTime = ts;
+            draw(); // Move cursor
+
+            // Seek Logic Start
+            // Find segment that CONTAINS this timestamp
+            const seg = segments.find(s => ts >= s.start && s.end >= ts);
+
+            if (seg) {
+                const offset = ts - seg.start;
+                // Use src_camera (physical folder) if available, else camera (logical)
+                const folder = seg.src_camera || seg.camera || CAMERA;
+                const src = `${API_URL}/video/${folder}/${seg.filename}`;
+
+                // Smart Seek Check
+                const currentUrl = video.src.split('#')[0]; // Remove existing hash
+                const targetUrl = src;
+
+                // Compare relative paths or endsWith to avoid full URL mismatch
+                if (currentUrl.endsWith(seg.filename) && !Number.isNaN(video.duration) && !video.error) {
+                    // SAME video file. Just seek within it.
+                    console.log(`[Smart Seek] Moving currentTime to ${offset}`);
+                    if (Math.abs(video.currentTime - offset) > 1) {
+                        video.currentTime = offset;
+                    }
+                    if (autoPlay) {
+                        video.play().catch(e => console.error("Play error:", e));
+                    }
+                } else {
+                    // NEW video file. Load it.
+                    console.log(`[Player] Loading new src: ${src}#t=${offset}`);
+                    currentFileStart = seg.start;
+
+                    hud.innerText = `Carregando arquivo...`;
+                    hud.style.color = 'yellow';
+
+                    video.src = `${src}#t=${offset}`;
+                    video.load(); // Force internal reset
+
+                    if (autoPlay) {
+                        const playPromise = video.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(e => {
+                                console.error("Playback Error:", e);
+                                if (e.name === 'NotAllowedError') {
+                                    hud.innerText = "🔇 Toque para iniciar Áudio/Vídeo";
+                                } else {
+                                    hud.innerText = `Erro: ${e.name}`;
+                                    // Let the error listener handle corrupt files
+                                }
+                            });
+                        }
+                    }
+                }
+            } else {
+                // No video at this timestamp (Gap)
+                hud.innerText = `Sem gravação em: ${new Date(ts * 1000).toLocaleTimeString()}`;
+                hud.style.color = 'gray';
+
+                // If we were playing, should we auto-skip gap?
+                // Let's look ahead for the next segment
+                if (autoPlay) {
+                    const nextSeg = segments.find(s => s.start > ts);
+                    if (nextSeg && (nextSeg.start - ts) < 60) { // If gap is small (< 1 min), jump
+                        console.log("Gap small, jumping to next...");
+                        seekTo(nextSeg.start, true);
+                    } else {
+                        video.pause();
+                        video.removeAttribute('src'); // Stop buffering
+                    }
+                }
+            }
+        }
+
+        // ROBUST ERROR HANDLING (Fixes "Stuck" issues)
+        video.addEventListener('error', (e) => {
+            const err = video.error;
+            let msg = "Erro desconhecido";
+            if (err) {
+                if (err.code === 3) msg = "Erro Decode";
+                if (err.code === 4) msg = "Arquivo Inválido/Não Suportado";
+            }
+            console.error("Video Error Event:", err, msg);
+
+            // AGGRESSIVE AUTO-SKIP
+            hud.innerText = `⚠️ ${msg}. Pulando arquivo...`;
+            hud.style.color = 'orange';
+
+            // Find current segment index
+            const idx = segments.findIndex(s => s.start === currentFileStart);
+
+            if (idx !== -1 && idx < segments.length - 1) {
+                const nextSeg = segments[idx + 1];
+                console.warn(`[Auto-Skip] Jumping from Corrupt File (${currentFileStart}) -> Next (${nextSeg.start})`);
+
+                // Add tiny delay to prevent CPU spin loop if all files are bad
+                setTimeout(() => {
+                    seekTo(nextSeg.start, true);
+                }, 1000);
+            } else {
+                hud.innerText = "❌ Fim da linha (Erro no último arquivo)";
+                hud.style.color = 'red';
+            }
+        });
+
+        function nextSegment() {
+            hud.innerText = "⏭️ Buscando próximo...";
+            // Find first segment starting AFTER current view position
+            const next = segments.find(s => s.start > centerTime + 2); // 2s tolerance
+            if (next) {
+                console.log("Manual Next ->", next.start);
+                hud.innerText = "Carregando próximo...";
+                seekTo(next.start, true);
+            } else {
+                console.log("No next segment.");
+                hud.innerText = "Fim da lista.";
+            }
+        }
+
+        function prevSegment() {
+            hud.innerText = "⏮️ Buscando anterior...";
+            // Find last segment ending BEFORE current view position
+            const prev = segments.slice().reverse().find(s => s.end < centerTime - 2);
+            if (prev) {
+                seekTo(prev.start, true);
+            } else {
+                hud.innerText = "Inicio da lista.";
+            }
+        }
+
+        let playbackWatchdog = null;
+        video.addEventListener('waiting', () => {
+            console.log("Video Buffering/Stalled...");
+            if (playbackWatchdog) clearTimeout(playbackWatchdog);
+            playbackWatchdog = setTimeout(() => {
+                console.warn("Watchdog: Video stuck for 5s. Skipping...");
+                nextSegment();
+            }, 5000);
+        });
+        video.addEventListener('playing', () => {
+            if (playbackWatchdog) clearTimeout(playbackWatchdog);
+            hud.innerText = "Reproduzindo ✅";
+            hud.style.color = '#4CAF50';
+        });
+
+        // Freeze Detector (Enhanced)
+        setInterval(() => {
+            // Check if playing but stuck
+            const isPlaying = !video.paused && !video.ended;
+            const isStuck = video.currentTime === lastPlayTime;
+            const isBuffering = video.readyState < 3; // < HAVE_FUTURE_DATA
+
+            if (isPlaying && (isStuck || isBuffering)) {
+                freezeCounter++;
+                // console.log(`[Freeze] Count: ${freezeCounter}, ReadyState: ${video.readyState}`);
+
+                if (freezeCounter >= 3) { // Reduced to 3s
+                    console.error("[Freeze Detector] STALL DETECTED. SKIPPING.");
+                    hud.innerText = "❄️ Stall Detectado. Pulando...";
+                    hud.style.color = 'cyan';
+                    freezeCounter = 0;
+                    nextSegment();
+                }
+            } else {
+                freezeCounter = 0;
+                lastPlayTime = video.currentTime;
+            }
+        }, 1000);
+
+        // Sync Timeline with Video Playback & Auto-Next
+        video.addEventListener('timeupdate', () => {
+            if (isDragging || !currentFileStart) return;
+
+            // 1. Update timeline center
+            const nowTs = currentFileStart + video.currentTime;
+            centerTime = nowTs;
+            draw();
+
+            // 2. Check for End of Segment (Gapless Playback)
+            // Find current segment object to know its end (Robust Epsilon match)
+            const currentSeg = segments.find(s => Math.abs(s.start - currentFileStart) < 0.5);
+
+            if (currentSeg && nowTs >= currentSeg.end - 0.5) { // 0.5s buffer before end
+                // Find next segment
+                const nextSeg = segments.find(s => s.start > currentSeg.start); // Sorted auto finder
+                if (nextSeg && (nextSeg.start - currentSeg.end) < 5) { // Only if gap is small (<5s)
+                    console.log("Auto-playing next segment...");
+                    // Do not seek if we just seeked (debounce?)
+                    // For now, trust seekTo
+                    seekTo(nextSeg.start);
+                }
+            }
+        });
+
+        // Loop Detector (Time going backwards)
+        let lastUpdateTs = 0;
+        let loopCount = 0;
+        video.addEventListener('timeupdate', () => {
+            if (isDragging || video.paused) {
+                lastUpdateTs = video.currentTime;
+                return;
+            }
+
+            // High Sensitivity: 0.1s drop
+            if (video.currentTime < lastUpdateTs - 0.1) {
+                loopCount++;
+                // console.warn(`[Loop] Backwards detect ${loopCount}`);
+
+                if (loopCount > 3) { // 3 ticks of backward movement
+                    hud.innerText = "🔄 Loop Micro detectado. Pulando...";
+                    hud.style.color = 'magenta';
+                    loopCount = 0;
+                    nextSegment();
+                }
+            } else {
+                if (video.currentTime > lastUpdateTs) loopCount = 0;
+            }
+            lastUpdateTs = video.currentTime;
+        });
+
+        // Fail-safe Ended Trigger
+        video.addEventListener('ended', () => {
+            console.log("[Video] Ended event fired. Calling nextSegment.");
+            nextSegment();
+        });
+
+        function goLive() {
+            // Just jump to end
+            centerTime = Math.floor(Date.now() / 1000);
+            fetchData();
+        }
+
+        // Auto load
+        fetchData();
+    </script>
+</body>
+
+</html>

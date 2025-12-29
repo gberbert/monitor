@@ -217,7 +217,9 @@ def save_camera():
             data.get('password'),
             stream_url,
             data.get('crop_mode', 0),
-            data.get('timeout', 25)
+            data.get('timeout', 25),
+            data.get('record_enabled', 1),
+            data.get('retention_days', 7)
         )
         
         # Trigger Config Sync
@@ -394,6 +396,26 @@ def change_password_api():
     database.change_password(username, new_pass)
     return jsonify({"status": "ok"})
 
+# --- NVR GLOBAL SETTINGS ---
+@app.route('/api/nvr/config', methods=['GET'])
+def get_nvr_config():
+    return jsonify({
+        "storage_path": database.get_config('storage_path', 'go2rtc_bin/storage'),
+        "disk_quota_gb": int(database.get_config('disk_quota_gb', '500'))
+    })
+
+@app.route('/api/nvr/config', methods=['POST'])
+def set_nvr_config():
+    data = request.json
+    try:
+        if 'storage_path' in data:
+            database.set_config('storage_path', data['storage_path'])
+        if 'disk_quota_gb' in data:
+            database.set_config('disk_quota_gb', data['disk_quota_gb'])
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return str(e), 500
+
 # --- NETWORK SCANNER ---
 @app.route('/api/network_scan')
 def api_network_scan():
@@ -475,6 +497,51 @@ def api_network_scan():
         "network": f"{network_prefix}0/24",
         "devices": found_devices
     })
+
+# --- PROXY PARA NVR BACKEND (Porta 5002) ---
+# Permite acessar Timeline e Video via porta 5000 / Cloudflare
+NVR_API = "http://127.0.0.1:5002"
+
+@app.route('/api/nvr/<path:subpath>', methods=['GET'])
+def proxy_nvr_api(subpath):
+    target_url = f"{NVR_API}/api/nvr/{subpath}"
+    print(f"[PROXY NVR] Accessing: {target_url}")
+    try:
+        resp = requests.request(
+            method=request.method,
+            url=target_url,
+            headers={k:v for k,v in request.headers if k.lower() != 'host'},
+            params=request.args,
+            timeout=10
+        )
+        
+        # Excluir headers problema para WSGI (Waitress)
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'keep-alive', 'upgrade']
+        headers = [(k,v) for k,v in resp.raw.headers.items() if k.lower() not in excluded_headers]
+        
+        return Response(resp.content, resp.status_code, headers)
+    except Exception as e:
+        print(f"[PROXY NVR ERROR] {e}")
+        return str(e), 502
+
+@app.route('/video/<path:subpath>')
+def proxy_nvr_video(subpath):
+    # Proxy para arquivos de vídeo (streaming de arquivo)
+    target_url = f"{NVR_API}/video/{subpath}"
+    print(f"[PROXY VIDEO] Accessing: {target_url}")
+    try:
+        # Stream response for video
+        resp = requests.get(target_url, stream=True)
+        
+        # Excluir headers problema para WSGI (Waitress)
+        # Manter Content-Length e Content-Range para suporte a Range Requests (Seek)
+        excluded_headers = ['content-encoding', 'transfer-encoding', 'connection', 'keep-alive', 'upgrade']
+        headers = [(k,v) for k,v in resp.raw.headers.items() if k.lower() not in excluded_headers]
+
+        # Use 64k chunks for better streaming responsiveness
+        return Response(resp.iter_content(chunk_size=65536), resp.status_code, headers)
+    except Exception as e:
+         return str(e), 502
 
 # --- PROXY PARA API DO GO2RTC (Salva o dia!) ---
 @app.route('/api/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE'])

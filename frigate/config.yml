@@ -1,0 +1,71 @@
+mqtt:
+  enabled: False
+
+go2rtc:
+  streams:
+    piscina:
+      - rtsp://berbert:viguera2001@192.168.3.14:554/cam/realmonitor?channel=1&subtype=0
+    rua:
+      - rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0
+    varanda:
+      - rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1
+    portao:
+      - rtsp://admin:viguera2001@192.168.3.21:554/cam/realmonitor?channel=1&subtype=0
+
+cameras:
+  piscina:
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/piscina
+          roles:
+            - record
+            - detect
+    detect:
+      enabled: False
+    record:
+      enabled: True
+      retain:
+        days: 1
+        mode: all
+
+  rua:
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/rua
+          roles:
+            - record
+    detect:
+      enabled: False
+    record:
+      enabled: True
+      retain:
+        days: 1
+        mode: all
+
+  varanda:
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/varanda
+          roles:
+            - record
+    detect:
+      enabled: False
+    record:
+      enabled: True
+      retain:
+        days: 1
+        mode: all
+
+  portao:
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/portao
+          roles:
+            - record
+    detect:
+      enabled: False
+    record:
+      enabled: True
+      retain:
+        days: 1
+        mode: all

@@ -15,6 +15,8 @@ python sync_cameras_to_web.py
 
 :: 3. Start Go2RTC (Video Backend)
 cd /d "%~dp0go2rtc_bin"
+:: FIX: Add bin folder to PATH so Go2RTC can find ffmpeg.exe easily
+set "PATH=%PATH%;%~dp0go2rtc_bin"
 start "" /MIN go2rtc.exe -config go2rtc.yaml
 
 :: Wait a moment for Go2RTC
@@ -23,6 +25,13 @@ timeout /t 5 /nobreak >nul
 :: 4. Start VMS Proxy (Web Server)
 cd /d "%~dp0"
 start "" /MIN python vms_proxy.py
+
+:: 4.1 Start NVR Backend (Timeline API - Port 5002)
+start "" /MIN python nvr_api_new.py
+
+:: 4.2 Start NVR Services (Recorder + Indexer)
+start "NVR Indexer" /MIN python indexer.py
+start "NVR Recorder" /D "go2rtc_bin" /MIN python recorder.py
 
 :: Wait a moment for Proxy
 timeout /t 3 /nobreak >nul

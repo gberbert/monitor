@@ -21,6 +21,13 @@ start /MIN "Go2RTC Backend" go2rtc.exe -config go2rtc.yaml
 :: Aguardar Go2RTC
 timeout /t 3 /nobreak >nul
 
+:: 2.1 Iniciar NVR (Gravador + Indexador + API :5002)
+echo [1.5/3] Iniciando Servicos NVR...
+cd /d "%~dp0"
+start "NVR Indexer" /MIN python indexer.py
+start "NVR API" /MIN python nvr_api_new.py
+start "NVR Recorder" /D "go2rtc_bin" /MIN python recorder.py
+
 :: 3. Iniciar Proxy (Front+Back Unificados :5000)
 echo [2/3] Iniciando Proxy VMS (Site+Video)...
 cd /d "%~dp0"

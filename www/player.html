@@ -50,19 +50,32 @@
             align-items: center;
         }
 
-        .hd-btn {
+        .quality-btn {
             background: #444;
-            color: #aaa;
+            color: #ddd;
             border: 1px solid #555;
             transition: all 0.2s;
+            min-width: 80px;
+            justify-content: center;
         }
 
-        .hd-btn.active {
-            background: #26a69a;
-            color: white;
+        /* Cores por Nível */
+        .q-sd {
+            border-color: #555;
+            color: #aaa;
+        }
+
+        .q-hd {
             border-color: #26a69a;
-            font-weight: bold;
-            box-shadow: 0 0 10px rgba(38, 166, 154, 0.5);
+            color: #26a69a;
+            background: rgba(38, 166, 154, 0.1);
+        }
+
+        .q-uhd {
+            border-color: #7c4dff;
+            color: #7c4dff;
+            background: rgba(124, 77, 255, 0.1);
+            box-shadow: 0 0 10px rgba(124, 77, 255, 0.3);
         }
 
         video {
@@ -84,22 +97,55 @@
     </style>
 </head>
 
+<style>
+    /* ... existing styles ... */
+    .loader {
+        border: 8px solid #333;
+        /* Light grey */
+        border-top: 8px solid #3498db;
+        /* Blue */
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        animation: spin 2s linear infinite;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin-top: -30px;
+        margin-left: -30px;
+        z-index: 5;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+</head>
+
 <body>
 
     <div class="top-bar">
         <a href="dashboard.html" class="back-btn">⬅ Voltar</a>
         <div class="actions">
-            <!-- HD Toggle Button -->
-            <button id="btn-hd" onclick="toggleHD()" class="back-btn hd-btn">HD</button>
+            <!-- Quality Cycle Button -->
+            <button id="btn-quality" onclick="cycleQuality()" class="back-btn quality-btn q-sd">SD</button>
             <button onclick="document.getElementById('mjpeg-stream').requestFullscreen()" class="back-btn">⛶
                 Full</button>
         </div>
     </div>
 
     <!-- MJPEG Player -->
-    <div style="display: flex; justify-content: center; align-items: center; height: 100%; background: #000;">
-        <img id="mjpeg-stream" style="max-width: 100%; max-height: 100%; object-fit: contain;"
-            alt="Carregando Video...">
+    <div
+        style="display: flex; justify-content: center; align-items: center; height: 100%; background: #000; position:relative;">
+        <div id="loader" class="loader"></div>
+        <img id="mjpeg-stream"
+            style="max-width: 100%; max-height: 100%; object-fit: contain; opacity:0; transition:opacity 0.3s;" alt="">
     </div>
 
     <div id="status-log">Modo: Carregando...</div>
@@ -111,98 +157,101 @@
         }
 
         const img = document.getElementById('mjpeg-stream');
+        const loader = document.getElementById('loader');
         const statusLog = document.getElementById('status-log');
-        const btnHd = document.getElementById('btn-hd');
+        const btnQuality = document.getElementById('btn-quality');
         const urlParams = new URLSearchParams(window.location.search);
 
-        // Base Stream Key (e.g., 'camera_mjpeg' or 'camera_hd')
+        // Base Logic
+        // Keys: {name}_mjpeg -> {name}_hd -> {name}_uhd
         let currentKey = urlParams.get('src');
-        let isHd = false;
+        // Initial Level Detection
+        let currentLevel = 'sd'; // sd, hd, uhd
+        if (currentKey.endsWith('_uhd')) currentLevel = 'uhd';
+        else if (currentKey.endsWith('_hd')) currentLevel = 'hd';
+        else currentLevel = 'sd'; // default '_mjpeg'
 
-        // Determine initial state
-        if (currentKey && currentKey.endsWith('_hd')) {
-            isHd = true;
-            updateBtnState();
-        }
-
-        // Direct Connection Logic (Production Port 1984)
-        // Hybrid Logic: Local -> Direct 1984 | Remote -> Proxy
+        // Direct Connection Logic (Production Port 1984, Test 1985)
         const isLocalIP = ['localhost', '127.0.0.1'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
-        const BASE_HOST = isLocalIP ? `http://${window.location.hostname}:1984` : '';
+        let go2rtcPort = (window.location.port === '5001') ? '1985' : '1984';
+        const BASE_HOST = isLocalIP ? `http://${window.location.hostname}:${go2rtcPort}` : '';
 
-        function updateBtnState() {
-            if (isHd) {
-                btnHd.innerText = "HD: ON";
-                btnHd.classList.add('active');
-            } else {
-                btnHd.innerText = "HD: OFF";
-                btnHd.classList.remove('active');
+        updateBtnUI();
+
+        function updateBtnUI() {
+            // ... [Keep existing logic] ...
+            btnQuality.className = 'back-btn quality-btn';
+
+            // Logic: Button shows DESTINATION (Next Step)
+            if (currentLevel === 'sd') {
+                btnQuality.innerText = "Ir para HD 720p";
+                btnQuality.classList.remove('q-sd'); btnQuality.classList.remove('q-uhd'); btnQuality.classList.add('q-hd');
+            } else if (currentLevel === 'hd') {
+                btnQuality.innerText = "Ir para UHD 1080p";
+                btnQuality.classList.remove('q-hd'); btnQuality.classList.add('q-uhd');
+            } else if (currentLevel === 'uhd') {
+                btnQuality.innerText = "Voltar p/ SD 360p";
+                btnQuality.classList.remove('q-uhd'); btnQuality.classList.add('q-sd');
             }
         }
 
         function loadStream(key) {
             statusLog.innerText = `Conectando a: ${key}...`;
+            // img.src = ""; // Avoid flicker logic? NO, reset to show loader
+            img.style.opacity = '0';
+            loader.style.display = 'block';
 
-            // Force stop previous
-            img.src = "";
-
-            // Construct direct URL
             const streamUrl = `${BASE_HOST}/api/stream.mjpeg?src=${encodeURIComponent(key)}`;
-            console.log("Player connecting to:", streamUrl);
+            console.log("Switching to:", streamUrl);
 
-            // Small timeout to ensure socket teardown
             setTimeout(() => {
                 img.src = streamUrl;
             }, 50);
 
-            // Update URL param without reload (for sharing/refresh)
+            // Update URL
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('src', key);
             window.history.pushState({}, '', newUrl);
         }
 
-        function toggleHD() {
+        // ... [cycleQuality kept same] ...
+
+        function cycleQuality() {
             if (!currentKey) return;
+            let baseName = currentKey;
+            if (baseName.endsWith('_mjpeg')) baseName = baseName.replace('_mjpeg', '');
+            else if (baseName.endsWith('_hd')) baseName = baseName.replace('_hd', '');
+            else if (baseName.endsWith('_uhd')) baseName = baseName.replace('_uhd', '');
 
-            // Logic:
-            // SD Key: {name}_mjpeg
-            // HD Key: {name}_hd
+            let newSuffix = '';
+            if (currentLevel === 'sd') { currentLevel = 'hd'; newSuffix = '_hd'; }
+            else if (currentLevel === 'hd') { currentLevel = 'uhd'; newSuffix = '_uhd'; }
+            else { currentLevel = 'sd'; newSuffix = '_mjpeg'; }
 
-            let newKey = "";
-            if (isHd) {
-                // Switch to SD
-                // Replace '_hd' with '_mjpeg'
-                newKey = currentKey.replace('_hd', '_mjpeg');
-                isHd = false;
-            } else {
-                // Switch to HD
-                // Replace '_mjpeg' with '_hd'
-                if (currentKey.endsWith('_mjpeg')) {
-                    newKey = currentKey.replace('_mjpeg', '_hd');
-                } else {
-                    // Fallback append if naming scheme differs? 
-                    // Assuming standard naming from sync_test.py
-                    newKey = currentKey + "_hd";
-                }
-                isHd = true;
-            }
-
+            let newKey = baseName + newSuffix;
             currentKey = newKey;
-            updateBtnState();
+            updateBtnUI();
             loadStream(newKey);
         }
 
         // Event Handlers
         img.onload = () => {
-            statusLog.innerText = isHd ? "Status: ONLINE (HD 720p)" : "Status: ONLINE (SD 360p)";
+            loader.style.display = 'none';
+            img.style.opacity = '1';
+
+            let label = "";
+            if (currentLevel === 'sd') label = "Resolução Baixa (360p)";
+            if (currentLevel === 'hd') label = "Alta Definição (720p)";
+            if (currentLevel === 'uhd') label = "Ultra Definição (1080p)";
+            statusLog.innerText = `Status: ONLINE (${label})`;
             statusLog.style.color = "#0f0";
         };
 
         img.onerror = () => {
-            console.warn("Stream load failed.");
+            // loader.style.display = 'block'; // Keep loader or show error icon?
+            // User wanted nicer loader. Error state is different.
             statusLog.innerText = "Falha no Stream (Tentando reconectar...)";
             statusLog.style.color = "orange";
-            // Simple retry logic could go here
         };
 
         // Init

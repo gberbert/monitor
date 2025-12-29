@@ -118,31 +118,38 @@ def sync_config():
         # Filters
         vf = ""
         if crop_mode == 0: # Normal
-            vf_h264  = "scale=1280:720"
+            vf_h264  = "scale=1920:1080"
+            vf_uhd   = "scale=1920:1080"
             vf_hd    = "scale=1280:720"
             vf_mjpeg = "scale=640:360"
         elif crop_mode == 1: # 50% Top
-            vf_h264  = "crop=in_w:in_h/2:0:0,scale=1280:720"
+            vf_h264  = "crop=in_w:in_h/2:0:0,scale=1920:1080"
+            vf_uhd   = "crop=in_w:in_h/2:0:0,scale=1920:1080"
             vf_hd    = "crop=in_w:in_h/2:0:0,scale=1280:720"
             vf_mjpeg = "crop=in_w:in_h/2:0:0,scale=640:360"
         elif crop_mode == 2: # 50% Bottom
-            vf_h264  = "crop=in_w:in_h/2:0:in_h/2,scale=1280:720"
+            vf_h264  = "crop=in_w:in_h/2:0:in_h/2,scale=1920:1080"
+            vf_uhd   = "crop=in_w:in_h/2:0:in_h/2,scale=1920:1080"
             vf_hd    = "crop=in_w:in_h/2:0:in_h/2,scale=1280:720"
             vf_mjpeg = "crop=in_w:in_h/2:0:in_h/2,scale=640:360"
         elif crop_mode == 3: # 33% Top
-            vf_h264  = "crop=in_w:in_h/3:0:0,scale=1280:720"
+            vf_h264  = "crop=in_w:in_h/3:0:0,scale=1920:1080"
+            vf_uhd   = "crop=in_w:in_h/3:0:0,scale=1920:1080"
             vf_hd    = "crop=in_w:in_h/3:0:0,scale=1280:720"
             vf_mjpeg = "crop=in_w:in_h/3:0:0,scale=640:360"
         elif crop_mode == 4: # 33% Mid
-            vf_h264  = "crop=in_w:in_h/3:0:in_h/3,scale=1280:720"
+            vf_h264  = "crop=in_w:in_h/3:0:in_h/3,scale=1920:1080"
+            vf_uhd   = "crop=in_w:in_h/3:0:in_h/3,scale=1920:1080"
             vf_hd    = "crop=in_w:in_h/3:0:in_h/3,scale=1280:720"
             vf_mjpeg = "crop=in_w:in_h/3:0:in_h/3,scale=640:360"
         elif crop_mode == 5: # 33% Bot
-            vf_h264  = "crop=in_w:in_h/3:0:2*in_h/3,scale=1280:720"
+            vf_h264  = "crop=in_w:in_h/3:0:2*in_h/3,scale=1920:1080"
+            vf_uhd   = "crop=in_w:in_h/3:0:2*in_h/3,scale=1920:1080"
             vf_hd    = "crop=in_w:in_h/3:0:2*in_h/3,scale=1280:720"
             vf_mjpeg = "crop=in_w:in_h/3:0:2*in_h/3,scale=640:360"
         else:
-            vf_h264  = "scale=1280:720"
+            vf_h264  = "scale=1920:1080"
+            vf_uhd   = "scale=1920:1080"
             vf_hd    = "scale=1280:720"
             vf_mjpeg = "scale=640:360"
 
@@ -160,17 +167,22 @@ def sync_config():
         
         # MJPEG Stream Entry (EXEC FFMPEG)
         # MUST connect to localhost RTSP to reuse connection.
-        ffmpeg_bin = os.path.abspath(os.path.join(BASE_DIR, "..", "go2rtc_bin", "ffmpeg.exe")).replace("\\", "/")
-        if not os.path.exists(ffmpeg_bin): ffmpeg_bin = "ffmpeg"
+        # FIX: Usar 'ffmpeg' direto e garantir PATH no batch, pois caminho com espaco quebra o Go2RTC
+        ffmpeg_cmd = "ffmpeg"
         
         # SD Stream (Grid - 360p @ 15fps)
-        mjpeg_cmd = f'exec:"{ffmpeg_bin}" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8556/{src_id}" -vf "{vf_mjpeg}" -r 15 -c:v mjpeg -an -f mjpeg -'
+        mjpeg_cmd = f'exec:{ffmpeg_cmd} -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8556/{src_id}" -vf "{vf_mjpeg}" -r 15 -c:v mjpeg -an -f mjpeg -'
         yaml_content.append(f"  {mjpeg_id}: {mjpeg_cmd}")
 
         # HD Stream (Player - 720p @ 24fps)
         hd_id = f"{clean_id}_hd"
-        hd_cmd = f'exec:"{ffmpeg_bin}" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8556/{src_id}" -vf "{vf_hd}" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -'
+        hd_cmd = f'exec:{ffmpeg_cmd} -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8556/{src_id}" -vf "{vf_hd}" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -'
         yaml_content.append(f"  {hd_id}: {hd_cmd}")
+
+        # UHD Stream (Cinema - 1080p @ 24fps)
+        uhd_id = f"{clean_id}_uhd"
+        uhd_cmd = f'exec:{ffmpeg_cmd} -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8556/{src_id}" -vf "{vf_uhd}" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -'
+        yaml_content.append(f"  {uhd_id}: {uhd_cmd}")
         yaml_content.append("")
 
     # Write Config
