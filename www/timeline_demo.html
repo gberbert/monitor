@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NVR Timeline Demo</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             background: #111;
@@ -112,7 +116,64 @@
             background: #d32f2f;
         }
 
+        /* HAMBURGER MENU STYLES */
+        .menu-btn {
+            background: none;
+            border: none;
+            color: #eee;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            margin-right: 10px;
+        }
+
+        /* Dropdown Content (Hidden by Default) */
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 45px;
+            /* Abaixo do header */
+            left: 10px;
+            background-color: #252525;
+            min-width: 200px;
+            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            /* High Z-index */
+            border-radius: 4px;
+            border: 1px solid #444;
+        }
+
+        /* Links inside the dropdown */
+        .dropdown-content a,
+        .dropdown-content div {
+            color: #eee;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            cursor: pointer;
+            border-bottom: 1px solid #333;
+        }
+
+        .dropdown-content a:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-content a:hover,
+        .dropdown-content div:hover {
+            background-color: #444;
+        }
+
+        /* Show the dropdown menu */
+        .show {
+            display: block;
+        }
+
         /* Mobile & Responsive Fixes */
+        /* Body padding reset as we removed fixed sidebar */
+        body {
+            padding-left: 0;
+        }
+
         @media (max-width: 768px) {
             .header {
                 height: auto;
@@ -200,37 +261,242 @@
             }
         }
     </style>
+    <style>
+        :root {
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --drawer: #252525;
+            --text: #e0e0e0;
+            --accent: #26a69a;
+            --danger: #cf6679;
+            --header-h: 60px;
+            --drawer-w: 280px;
+        }
+
+        /* --- DRAWER --- */
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 15000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .drawer-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .drawer {
+            position: fixed;
+            top: 0;
+            left: calc(-1 * var(--drawer-w));
+            width: var(--drawer-w);
+            height: 100%;
+            background: var(--drawer);
+            z-index: 16000;
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .drawer.open {
+            transform: translateX(var(--drawer-w));
+        }
+
+        .drawer-header {
+            height: 140px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: #444;
+            color: #aaa;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .drawer-content {
+            flex: 1;
+            padding: 10px 0;
+            overflow-y: auto;
+        }
+
+        .menu-item {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            color: #ccc;
+            text-decoration: none;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+        }
+
+        .menu-item.active {
+            background: rgba(38, 166, 154, 0.1);
+            border-left-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .menu-icon {
+            margin-right: 15px;
+            width: 20px;
+            text-align: center;
+            opacity: 0.7;
+        }
+    </style>
     <!-- Flatpickr (Custom Calendar with Dark Theme) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-    <div class="header">
-        <button class="btn" onclick="goBack()" style="margin-right:10px;">⬅ Voltar</button>
-        <h1 id="page-title" style="text-transform:capitalize;">Câmera</h1>
-        <div style="display:flex; align-items:center; gap:10px;">
-            <!-- DATE FILTER -->
-            <!-- <div style="display:flex; align-items:center; background:#333; padding:2px 8px; border-radius:4px;">
-                REMOVIDO POR SOLICITACAO - USER REQUEST ID 1346
-            </div> -->
-
-            <select id="camSelector" onchange="changeCam(this.value)"
-                style="padding:5px; background:#333; color:white; border:none;">
-                <!-- Options populated by JS -->
-            </select>
-            <button class="btn" style="background:#d32f2f;" onclick="goLive()">Ao Vivo</button>
-            <button class="btn" style="background:#555;" onclick="shareVideo()" title="Compartilhar">🔗</button>
-            <button class="btn" style="background:#1976D2;" onclick="forceReload()">🔄</button>
+    <!-- DRAWER COMPONENT -->
+    <div class="drawer-overlay" id="overlay" onclick="toggleDrawer()"></div>
+    <div class="drawer" id="drawer">
+        <div class="drawer-header">
+            <div class="user-avatar">👤</div>
+            <div style="font-weight:600; color:#fff" id="user-display">Gustavo</div>
+            <div style="font-size:0.8rem; opacity:0.5">Gestão de Vídeo</div>
         </div>
+        <div class="drawer-content">
+            <a href="dashboard.html" class="menu-item" onclick="toggleDrawer()">
+                <span class="menu-icon">📷</span> Monitoramento
+            </a>
+
+            <a href="#" class="menu-item active" onclick="toggleDrawer()">
+                <span class="menu-icon">📼</span> NVR (Timeline)
+            </a>
+
+            <a href="nvr_settings.html" class="menu-item" onclick="toggleDrawer()">
+                <span class="menu-icon">⚙️</span> Configuração NVR (Admin)
+            </a>
+
+            <div class="menu-item" onclick="toggleFullscreen(); toggleDrawer();">
+                <span class="menu-icon">⛶</span> Tela Expandida
+            </div>
+
+            <div class="menu-item" onclick="location.reload()">
+                <span class="menu-icon">🔄</span> Recarregar Página
+            </div>
+
+            <hr style="border:0; border-top:1px solid #333; margin:10px 0">
+
+            <div class="menu-item" onclick="alert('Trocar Senha (Demo)')">
+                <span class="menu-icon">🔒</span> Trocar Senha
+            </div>
+
+            <div class="menu-item" onclick="window.location.href='index.html'">
+                <span class="menu-icon">🚪</span> Sair
+            </div>
+            <div id="app-version-display"
+                style="padding: 1rem; border-top: 1px solid #333; font-size: 0.8rem; color: #666; text-align: center;">
+                v1.0.18
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT START -->
+    <!-- HEADER REPLICATED FROM DASHBOARD -->
+    <div class="header"
+        style="justify-content: flex-start; padding: 0 15px; background: #1e1e1e; height: 60px; border-bottom: 1px solid #333; display: flex; align-items: center; flex-wrap: nowrap;">
+
+        <!-- 1. Hamburger Button (Left) -->
+        <button onclick="toggleDrawer()" class="menu-btn"
+            style="color:#aaa; font-size:24px; background:none; border:none; padding:5px; margin-right:10px; cursor:pointer; flex-shrink: 0;">☰</button>
+
+        <!-- 2. Clock (Next to Menu) -->
+        <div id="app-clock" style="font-size:1.1rem; color:#fff; font-weight:500; white-space:nowrap; flex-shrink: 0;">
+            --/--/---- --:--:--
+        </div>
+
+        <!-- 3. Branding (Right Aligned) -->
+        <div class="app-title"
+            style="font-size:1.35rem; font-weight:500; letter-spacing:1px; margin-left: auto; white-space: nowrap; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis;">
+            <span style="color:#fff">OS</span>
+            <span style="color:#29b6f6">BERBERT</span><span style="color:#ff4081">S</span>
+        </div>
+    </div>
+
+    <!-- SUB-HEADER COMPONENTS (Cam Selector & Controls) -->
+    <div class="sub-header"
+        style="padding: 10px; background: #111; border-bottom: 1px solid #333; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
+
+        <!-- Cameras Selector -->
+        <div style="flex: 1; min-width: 200px; display:flex; gap:10px;">
+            <select id="camSelector" class="selector"
+                style="flex:1; padding:8px; background:#222; color:white; border:1px solid #444; border-radius:4px;"
+                onchange="changeCam(this.value)">
+                <option value="" disabled selected>Carregando câmeras...</option>
+            </select>
+        </div>
+
+        <!-- Right Controls REMOVED (Date & Buttons Moved) -->
     </div>
 
     <div class="viewport" style="position:relative; overflow:hidden;">
         <video id="player" controls autoplay style="width:100%; height:100%; object-fit:contain;"></video>
+
+        <!-- FLOATING BUTTONS (TOP RIGHT) -->
+        <div style="position: absolute; top: 10px; right: 60px; z-index: 10; display: flex; gap: 8px;">
+            <button class="btn" onclick="goLive()"
+                style="background: rgba(211, 47, 47, 0.8); backdrop-filter: blur(2px); border: 1px solid rgba(255,255,255,0.2);">Ao
+                Vivo</button>
+            <button class="btn" onclick="shareVideo()" title="Compartilhar"
+                style="background: rgba(85, 85, 85, 0.8); backdrop-filter: blur(2px); border: 1px solid rgba(255,255,255,0.2);">🔗</button>
+        </div>
+
         <button id="btn-play-overlay"
             style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:3rem; background:none; border:none; color:white; opacity:0.8; cursor:pointer; display:none;">
             ▶
         </button>
         <div id="hud">Aguardando dados...</div>
+
+        <!-- MOBILE VIDEO ZOOM SLIDER -->
+        <input type="range" id="vZoomSlider" min="10" max="100" value="10" orient="vertical" style="
+                position: absolute;
+                right: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                height: 50%; /* Metade da altura da tela */
+                width: 40px; /* Area de toque maior */
+                z-index: 20;
+                opacity: 0.8;
+                display: none; /* CSS vai ativar no mobile */
+                appearance: slider-vertical; /* Chrome/Safari */
+                accent-color: #2e7d32;
+            " oninput="handleVZoom(this.value)">
+        <style>
+            @media (max-width: 768px) {
+                #vZoomSlider {
+                    display: block !important;
+                }
+            }
+        </style>
 
         <!-- SNIPER OVERLAY (HIDDEN BY DEFAULT) -->
         <div id="sniperOverlay" style="
@@ -374,31 +640,126 @@
         </div>
     </div>
 
+    <style>
+        /* Mobile Specific Overrides applied mainly via media query */
+        @media (max-width: 768px) {
+            .header {
+                justify-content: space-between !important;
+                /* Force space between */
+                padding: 0 10px !important;
+                /* Reset padding */
+            }
+
+            .header>.app-title {
+                display: block !important;
+                visibility: visible !important;
+                width: auto !important;
+                flex-shrink: 0 !important;
+                /* Dont shrink title */
+            }
+
+            /* Dashboard Font-Size Pattern */
+            .app-title {
+                font-size: 0.75rem !important;
+                /* Small like dashboard */
+                margin-left: auto !important;
+                /* Push to right */
+                text-align: right;
+            }
+
+            #app-clock {
+                font-size: 0.75rem !important;
+                /* Small like dashboard */
+                margin-left: 5px !important;
+                margin-right: auto !important;
+                /* Push title to right? No, clock aligns left next to menu */
+                text-align: left;
+                font-weight: bold;
+                flex-grow: 1;
+                /* Let clock take space if needed but title has priority right */
+            }
+
+            /* FIX: Make sure Clock is strictly after menu and Title is strictly right */
+            /* Actually, the HTML order is Menu -> Clock -> Title.
+               If we want Title on Right, Title needs margin-left: auto.
+               If Title dissapeared, it might be overflow. Let's fix. */
+
+            .menu-btn {
+                font-size: 20px !important;
+                margin-right: 5px !important;
+            }
+
+            /* Remove blank space in controls */
+            .controls {
+                min-height: auto !important;
+                /* Remove min-height */
+                padding-bottom: 0 !important;
+            }
+
+            /* TIMELINE HEIGHT INCREASE (USER REQUEST 1/3 MORE) */
+            .timeline-container {
+                height: 120px !important;
+                /* Increased from ~75px default */
+            }
+
+            .time-labels {
+                flex-direction: row !important;
+                /* Side by side on mobile */
+                gap: 0 !important;
+                padding: 5px 10px !important;
+            }
+
+            #zoom-controls {
+                width: auto !important;
+                /* Auto width */
+                justify-content: flex-end;
+                /* Align right or left */
+                order: 2;
+                /* Zoom on right */
+            }
+
+            #timestamp-display {
+                margin: 0 !important;
+                display: inline-block !important;
+                width: auto !important;
+                font-size: 0.9rem !important;
+                min-width: 130px !important;
+                order: 1;
+                /* Date on left */
+            }
+
+            #zoomSlider {
+                width: 100px !important;
+                /* Smaller slider */
+                margin: 0 !important;
+            }
+        }
+    </style>
+
     <div class="controls">
-        <div class="time-labels" style="display:flex; justify-content:space-between; align-items:center;">
-            <div id="zoom-controls" style="display:flex; align-items:center; gap:10px;">
-                <button onclick="prevSegment()" title="Arquivo Anterior" class="btn">⏮️</button>
-                <button onclick="nextSegment()" title="Próximo Arquivo" class="btn">⏭️</button>
+        <div class="time-labels" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
 
-                <span style="color:#aaa; font-size:0.8rem; margin-left:15px;">Zoom:</span>
-                <input type="range" id="zoomSlider" min="60" max="14400" step="60" value="1800"
-                    oninput="updateZoom(this.value)" style="width:150px; cursor:pointer;">
-            </div>
-
-            <!-- Dynamic Timestamp Display (Moved out for better responsive layout) -->
-            <!-- Dynamic Timestamp Display with Flatpickr -->
+            <!-- Date Left -->
             <div style="position:relative; display:inline-block;">
-                <span id="timestamp-display" style="
+                <span id="timestamp-display" onclick="openDateTimePicker()" style="
                     font-family:'Consolas', monospace; 
                     font-size:1.1rem; 
                     color:#4CAF50; 
                     border:1px solid #444; 
                     padding:2px 8px; 
                     background:#000;
-                    min-width: 180px;
+                    min-width: 160px;
                     text-align:center;
                     cursor: pointer;
                 " title="Clique para alterar Data/Hora">--/--/---- --:--:--</span>
+                <input type="datetime-local" id="navDateTimePicker" onchange="handleTimeJump(this.value)"
+                    style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0.01; cursor:pointer; z-index:10;">
+            </div>
+
+            <!-- Slider Right (No Text) -->
+            <div id="zoom-controls" style="display:flex; align-items:center;">
+                <input type="range" id="zoomSlider" min="60" max="14400" step="60" value="1800"
+                    oninput="updateZoom(this.value)" style="width:150px; cursor:pointer;">
             </div>
         </div>
         <!-- Labels ocultos conforme pedido anterior -->
@@ -423,7 +784,8 @@
 
         // Update Title immediately
         const safeCamName = (CAMERA && CAMERA !== 'undefined') ? CAMERA : 'Camera';
-        document.getElementById('page-title').innerText = "Câmera: " + safeCamName.charAt(0).toUpperCase() + safeCamName.slice(1);
+        document.title = "NVR - " + safeCamName;
+        // document.getElementById('page-title').innerText = ... (Removed as element is gone)
 
         // FIXED: Variáveis globais faltantes
         let lastPlayTime = 0;
@@ -543,6 +905,11 @@
             vidContainer.style.cursor = 'default';
         });
 
+        // Vertical Slider Handler
+        function handleVZoom(val) {
+            const scale = parseInt(val) / 10;
+            applyDigitalZoom(scale, dTransX, dTransY);
+        }
 
         function applyDigitalZoom(scale, x, y) {
             // Limits
@@ -564,6 +931,12 @@
                 // For now, free pan (Photoshop style) is acceptable.
                 dTransX = x;
                 dTransY = y;
+            }
+
+            // Sync Vertical Slider (if exists)
+            const vSlider = document.getElementById('vZoomSlider');
+            if (vSlider) {
+                vSlider.value = dZoom * 10;
             }
 
             // Apply Transform
@@ -1427,6 +1800,55 @@
             });
         });
 
+        // === FULLSCREEN LOGIC ===
+        function toggleFullscreen() {
+            // Close menu if open
+            const dropdown = document.getElementById("mainDropdown");
+            if (dropdown && dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+            }
+
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        /* DRAWER LOGIC */
+        function toggleDrawer() {
+            document.getElementById('drawer').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('open');
+        }
+
+        // Close drawer if open when going fullscreen? Usually keep it separate.
+        // But if user wants full immersion, maybe close it.
+        // Let's rely on toggleDrawer inside the menu item click.
+
+        // === CLOCK ===
+        function updateClock() {
+            const now = new Date();
+            const d = String(now.getDate()).padStart(2, '0');
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const y = now.getFullYear();
+            const H = String(now.getHours()).padStart(2, '0');
+            const M = String(now.getMinutes()).padStart(2, '0');
+            const S = String(now.getSeconds()).padStart(2, '0');
+
+            const el = document.getElementById('app-clock');
+            if (el) {
+                // Format: DD/MM/YYYY HH:MM:SS
+                el.innerHTML = `${d}/${m}/${y}&nbsp;&nbsp;${H}:${M}:${S}`;
+            }
+        }
+        setInterval(updateClock, 1000);
+        // Initial call after load
+        window.addEventListener('load', updateClock);
+
         function handleTimeJump(isoVal) {
             if (!isoVal) return;
             const ts = new Date(isoVal).getTime() / 1000;
@@ -1509,7 +1931,7 @@
                         video.currentTime = offset;
                     }
                     if (autoPlay) {
-                        video.play().catch(e => console.error("Play error:", e));
+                        safePlay();
                     }
                 } else {
                     // NEW video file. Load it.
@@ -1523,18 +1945,7 @@
                     video.load(); // Force internal reset
 
                     if (autoPlay) {
-                        const playPromise = video.play();
-                        if (playPromise !== undefined) {
-                            playPromise.catch(e => {
-                                console.error("Playback Error:", e);
-                                if (e.name === 'NotAllowedError') {
-                                    hud.innerText = "🔇 Toque para iniciar Áudio/Vídeo";
-                                } else {
-                                    hud.innerText = `Erro: ${e.name}`;
-                                    // Let the error listener handle corrupt files
-                                }
-                            });
-                        }
+                        safePlay();
                     }
                 }
             } else {
@@ -1613,44 +2024,74 @@
             }
         }
 
-        let playbackWatchdog = null;
-        video.addEventListener('waiting', () => {
-            console.log("Video Buffering/Stalled...");
-            if (playbackWatchdog) clearTimeout(playbackWatchdog);
-            playbackWatchdog = setTimeout(() => {
-                console.warn("Watchdog: Video stuck for 5s. Skipping...");
-                nextSegment();
-            }, 5000);
-        });
+        // Disable Legacy Watchdog (conflicts with slow network logic)
+        // video.addEventListener('waiting', () => {
+        //     console.log("Video Buffering/Stalled...");
+        //     if (playbackWatchdog) clearTimeout(playbackWatchdog);
+        //     playbackWatchdog = setTimeout(() => {
+        //         console.warn("Watchdog: Video stuck for 5s. Skipping...");
+        //         nextSegment();
+        //     }, 5000);
+        // });
         video.addEventListener('playing', () => {
-            if (playbackWatchdog) clearTimeout(playbackWatchdog);
+            // if (playbackWatchdog) clearTimeout(playbackWatchdog); // Removed with watchdog
             hud.innerText = "Reproduzindo ✅";
             hud.style.color = '#4CAF50';
         });
 
-        // Freeze Detector (Enhanced)
+        // Freeze Detector (Cloudflare / Slow Network Optimized)
+        // User Requested: 20 minutes timeout
+        let lastProgressTime = Date.now();
+
+        video.addEventListener('progress', () => {
+            lastProgressTime = Date.now();
+        });
+
         setInterval(() => {
             // Check if playing but stuck
             const isPlaying = !video.paused && !video.ended;
             const isStuck = video.currentTime === lastPlayTime;
-            const isBuffering = video.readyState < 3; // < HAVE_FUTURE_DATA
+            const isBuffering = video.readyState < 3;
+
+            // If buffering but downloading data (progress event < 3s ago), considered "Health Buffering"
+            const dataFlowing = (Date.now() - lastProgressTime) < 3000;
 
             if (isPlaying && (isStuck || isBuffering)) {
+                // If data is flowing, we serve as a "soft" freeze (increment slowly or ignore?)
+                // Let's count anyway because we don't want to wait forever if download is too slow to play.
                 freezeCounter++;
-                // console.log(`[Freeze] Count: ${freezeCounter}, ReadyState: ${video.readyState}`);
 
-                if (freezeCounter >= 3) { // Reduced to 3s
+                // Threshold: 30s (Reverted to reasonable Cloudflare latency)
+                if (freezeCounter >= 30) {
                     console.error("[Freeze Detector] STALL DETECTED. SKIPPING.");
-                    hud.innerText = "❄️ Stall Detectado. Pulando...";
-                    hud.style.color = 'cyan';
+                    hud.innerText = "❄️ Timeout de Rede (30s). Pulando...";
+                    hud.style.color = 'orange';
                     freezeCounter = 0;
                     nextSegment();
+                } else if (freezeCounter > 5) {
+                    // Visual feedback
+                    hud.innerText = `Buffering... (${freezeCounter}s)`;
+                    hud.style.color = 'yellow';
                 }
             } else {
                 freezeCounter = 0;
                 lastPlayTime = video.currentTime;
             }
         }, 1000);
+
+        // Safe Play Helper
+        async function safePlay() {
+            try {
+                await video.play();
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    // Ignore aborts caused by fast seeking
+                    console.log("Play aborted (expected during seek).");
+                } else {
+                    console.error("Play error:", err);
+                }
+            }
+        }
 
         // Sync Timeline with Video Playback & Auto-Next
         video.addEventListener('timeupdate', () => {

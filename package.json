@@ -1,6 +1,6 @@
 {
     "name": "monitor-ag-root",
-    "version": "1.0.17",
+    "version": "1.0.18",
     "description": "Root orchestrator for Monitor AG",
     "scripts": {
         "dev": "npx -y kill-port 3001 5173 && concurrently -k \"npm run server\" \"npm run client\"",
