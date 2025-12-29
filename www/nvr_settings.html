@@ -197,24 +197,36 @@
         <div style="clear:both"></div>
     </div>
 
-    <!-- CAMERA RULES -->
+    <!-- AI SETTINGS -->
     <div class="section">
-        <h2>Regras de Gravação por Câmera</h2>
-        <div id="loading">Carregando câmeras...</div>
-        <table id="camTable" style="display:none">
-            <thead>
-                <tr>
-                    <th>Câmera</th>
-                    <th>Gravar</th>
-                    <th>Retenção (Dias)</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody id="camBody">
-                <!-- JS Populate -->
-            </tbody>
-        </table>
+        <h2>Inteligência Artificial (Google Gemini)</h2>
+        <div class="form-group">
+            <label>API Key</label>
+            <input type="text" id="geminiKey" placeholder="Ex: AIzaSy...">
+            <div class="hint">Chave de API do Google Gemini para melhoria de imagem.</div>
+        </div>
+        <div class="form-group">
+            <label>Modelo de Texto (Descrição)</label>
+            <input type="text" id="geminiModelText" value="gemini-1.5-flash-latest">
+            <div class="hint">Modelo rápido parar ler a imagem e gerar o prompt (Ex: gemini-1.5-flash-latest).</div>
+        </div>
+        <div class="form-group">
+            <label>Prompt Inicial (Passo A)</label>
+            <textarea id="geminiPromptA" rows="4"
+                style="width:100%; background:#2a2a2a; border:1px solid #444; color:white; padding:10px; border-radius:4px;"></textarea>
+            <div class="hint">Prompt enviado ao modelo de visão para descrever a cena antes de gerar a nova imagem.
+                (Variável dinâmica)</div>
+        </div>
+        <div class="form-group">
+            <label>Modelo de Imagem (Upscaling/Generation)</label>
+            <input type="text" id="geminiModel" value="imagen-3">
+            <div class="hint">Modelo generativo para recriar a imagem (Ex: imagen-3, stable-diffusion).</div>
+        </div>
+        <button class="btn-save" onclick="saveAI()">Salvar AI</button>
+        <div style="clear:both"></div>
     </div>
+
+    <!-- ... (Camera Rules) ... -->
 
     <script>
         // INIT
@@ -225,6 +237,11 @@
                 const conf = await r.json();
                 document.getElementById('storagePath').value = conf.storage_path;
                 document.getElementById('diskQuota').value = conf.disk_quota_gb;
+                // AI
+                if (conf.gemini_api_key) document.getElementById('geminiKey').value = conf.gemini_api_key;
+                if (conf.gemini_model) document.getElementById('geminiModel').value = conf.gemini_model;
+                if (conf.gemini_model_text) document.getElementById('geminiModelText').value = conf.gemini_model_text;
+                if (conf.gemini_prompt_step_a) document.getElementById('geminiPromptA').value = conf.gemini_prompt_step_a;
             } catch (e) { console.error(e); }
 
             // 2. Load Cameras
@@ -237,50 +254,28 @@
             }
         }
 
-        function renderTable(cams) {
-            const tbody = document.getElementById('camBody');
-            tbody.innerHTML = '';
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('camTable').style.display = 'table';
+        // ... form rendering ...
 
-            cams.forEach(cam => {
-                const tr = document.createElement('tr');
-
-                tr.innerHTML = `
-                    <td>
-                        <div style="font-weight:bold">${cam.name}</div>
-                        <div style="font-size:0.8rem; opacity:0.6">${cam.ip || 'Virtual'}</div>
-                    </td>
-                    <td>
-                        <label class="switch">
-                            <input type="checkbox" id="rec_${cam.mac}" ${cam.record_enabled ? 'checked' : ''}>
-                            <span class="slider"></span>
-                        </label>
-                    </td>
-                    <td>
-                        <input type="number" id="ret_${cam.mac}" value="${cam.retention_days || 7}" style="width:60px; padding:5px;">
-                    </td>
-                    <td>
-                        <button onclick="saveCam('${cam.mac}')" style="background:#444; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Salvar</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        async function saveGlobal() {
+        async function saveAI() {
             const data = {
-                storage_path: document.getElementById('storagePath').value,
-                disk_quota_gb: document.getElementById('diskQuota').value
+                gemini_api_key: document.getElementById('geminiKey').value,
+                gemini_model: document.getElementById('geminiModel').value,
+                gemini_model_text: document.getElementById('geminiModelText').value,
+                gemini_prompt_step_a: document.getElementById('geminiPromptA').value
             };
             try {
-                await fetch('/api/nvr/config', {
+                const res = await fetch('/api/nvr/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-                alert('Configuração Global Salva! (Reinicie o serviço para aplicar mudança de pasta)');
-            } catch (e) { alert('Erro ao salvar'); }
+                if (res.ok) {
+                    alert('Configuração de IA Salva!');
+                } else {
+                    const txt = await res.text();
+                    alert('Erro ao salvar IA: ' + res.status + ' - ' + txt);
+                }
+            } catch (e) { alert('Erro de Conexão: ' + e.message); }
         }
 
         async function saveCam(mac) {

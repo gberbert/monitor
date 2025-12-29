@@ -396,26 +396,6 @@ def change_password_api():
     database.change_password(username, new_pass)
     return jsonify({"status": "ok"})
 
-# --- NVR GLOBAL SETTINGS ---
-@app.route('/api/nvr/config', methods=['GET'])
-def get_nvr_config():
-    return jsonify({
-        "storage_path": database.get_config('storage_path', 'go2rtc_bin/storage'),
-        "disk_quota_gb": int(database.get_config('disk_quota_gb', '500'))
-    })
-
-@app.route('/api/nvr/config', methods=['POST'])
-def set_nvr_config():
-    data = request.json
-    try:
-        if 'storage_path' in data:
-            database.set_config('storage_path', data['storage_path'])
-        if 'disk_quota_gb' in data:
-            database.set_config('disk_quota_gb', data['disk_quota_gb'])
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        return str(e), 500
-
 # --- NETWORK SCANNER ---
 @app.route('/api/network_scan')
 def api_network_scan():
@@ -502,17 +482,18 @@ def api_network_scan():
 # Permite acessar Timeline e Video via porta 5000 / Cloudflare
 NVR_API = "http://127.0.0.1:5002"
 
-@app.route('/api/nvr/<path:subpath>', methods=['GET'])
+@app.route('/api/nvr/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def proxy_nvr_api(subpath):
     target_url = f"{NVR_API}/api/nvr/{subpath}"
-    print(f"[PROXY NVR] Accessing: {target_url}")
+    print(f"[PROXY NVR] Accessing: {target_url} [{request.method}]")
     try:
         resp = requests.request(
             method=request.method,
             url=target_url,
             headers={k:v for k,v in request.headers if k.lower() != 'host'},
+            data=request.get_data(), # Forward Body (Image/JSON)
             params=request.args,
-            timeout=10
+            timeout=90 # Increased timeout for AI processing (Gemini ImgGen can take time)
         )
         
         # Excluir headers problema para WSGI (Waitress)

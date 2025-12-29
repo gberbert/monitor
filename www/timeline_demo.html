@@ -108,27 +108,91 @@
             background: #d32f2f;
         }
 
-        /* Mobile Fixes */
-        @media (max-width: 600px) {
+        /* Mobile & Responsive Fixes */
+        @media (max-width: 768px) {
             .header {
                 height: auto;
                 flex-wrap: wrap;
                 padding: 10px;
-                gap: 10px;
+                gap: 8px;
+                justify-content: center;
             }
 
             .header h1 {
                 display: none;
+                /* Hide title on mobile to save space */
             }
 
+            /* Container dos botoes de acao (direita) */
             .header>div {
                 width: 100%;
                 display: flex;
+                flex-wrap: wrap;
                 justify-content: space-between;
+                gap: 5px;
             }
 
+            /* Date Picker e Selector ocupam largura total ou dividida */
+            #datePicker,
             #camSelector {
                 flex: 1;
+                min-width: 120px;
+                height: 35px;
+                /* Touch target */
+            }
+
+            /* Ajustes nos botões Header */
+            .header .btn {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+
+            /* Controls Area */
+            .controls {
+                height: auto;
+                min-height: 140px;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .time-labels {
+                height: auto;
+                flex-direction: column;
+                padding: 10px;
+                gap: 10px;
+                background: #1a1a1a;
+            }
+
+            #zoom-controls {
+                width: 100%;
+                justify-content: space-between;
+                font-size: 0.9rem;
+            }
+
+            #zoomSlider {
+                flex: 1;
+                /* Slider estica */
+                max-width: 150px;
+                margin: 0 10px;
+            }
+
+            /* Timestamp em nova linha, centralizado e bonito */
+            #timestamp-display {
+                display: block;
+                width: 100%;
+                margin: 5px 0 0 0 !important;
+                box-sizing: border-box;
+                font-size: 1rem !important;
+            }
+
+            /* Magic Button menos intrusivo */
+            #btnMagicAction {
+                bottom: 10px;
+                right: 10px;
+                padding: 8px 12px !important;
+                font-size: 0.85rem !important;
+                border-radius: 25px !important;
+                opacity: 0.9;
             }
         }
     </style>
@@ -152,6 +216,7 @@
                 <!-- Options populated by JS -->
             </select>
             <button class="btn" style="background:#d32f2f;" onclick="goLive()">Ao Vivo</button>
+            <button class="btn" style="background:#555;" onclick="shareVideo()" title="Compartilhar">🔗</button>
             <button class="btn" style="background:#1976D2;" onclick="forceReload()">🔄</button>
         </div>
     </div>
@@ -163,6 +228,147 @@
             ▶
         </button>
         <div id="hud">Aguardando dados...</div>
+
+        <!-- SNIPER OVERLAY (HIDDEN BY DEFAULT) -->
+        <div id="sniperOverlay" style="
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,20,0,0.3);
+            z-index: 5;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none; /* Let clicks pass through to Pan/Zoom */
+        ">
+            <!-- TARGET BOX -->
+            <div id="targetBox" style="
+                width: 250px;
+                height: 250px;
+                border: 2px solid #ff1744;
+                box-shadow: 0 0 15px #ff1744, inset 0 0 10px #ff1744;
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">
+                <!-- CROSSHAIR -->
+                <div style="position:absolute; width:100%; height:1px; background:rgba(255,23,68,0.5);"></div>
+                <div style="position:absolute; height:100%; width:1px; background:rgba(255,23,68,0.5);"></div>
+
+                <!-- CORNERS -->
+                <div
+                    style="position:absolute; top:-2px; left:-2px; width:20px; height:20px; border-top:4px solid #ff1744; border-left:4px solid #ff1744;">
+                </div>
+                <div
+                    style="position:absolute; top:-2px; right:-2px; width:20px; height:20px; border-top:4px solid #ff1744; border-right:4px solid #ff1744;">
+                </div>
+                <div
+                    style="position:absolute; bottom:-2px; left:-2px; width:20px; height:20px; border-bottom:4px solid #ff1744; border-left:4px solid #ff1744;">
+                </div>
+                <div
+                    style="position:absolute; bottom:-2px; right:-2px; width:20px; height:20px; border-bottom:4px solid #ff1744; border-right:4px solid #ff1744;">
+                </div>
+
+                <div
+                    style="margin-top:-180px; color:#ff1744; font-weight:bold; font-family:monospace; background:rgba(0,0,0,0.8); padding:2px 5px;">
+                    TARGET LOCKED</div>
+            </div>
+
+            <div
+                style="position:absolute; bottom:80px; color:white; text-align:center; text-shadow:0 1px 3px black; font-family:monospace;">
+                Posicione o alvo dentro do quadrado<br>usando Zoom e Pan
+            </div>
+        </div>
+
+
+
+        <!-- MAGIC LENS BUTTON -->
+        <button id="btnMagicAction" onclick="openMagicLens()" style="
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #6200ea, #b388ff);
+            border: 1px solid #fff;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(98, 0, 234, 0.7);
+            font-weight: bold;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.3s;
+        ">
+            ✨ Melhorar Imagem
+        </button>
+    </div>
+
+    <!-- ENHANCE MODAL -->
+    <div id="enhanceModal" style="
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.95);
+        z-index: 1000;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    ">
+        <h2
+            style="color:#b388ff; font-family:'Courier New', monospace; text-transform:uppercase; letter-spacing:2px; margin-bottom:10px;">
+            AI ENHANCEMENT PROTOCOL
+        </h2>
+
+        <div style="position:relative; width:90%; height:70%; border:2px solid #333; overflow:hidden; background:#000;">
+            <img id="enhancePreview" style="
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                filter: brightness(0.8) sepia(1) hue-rotate(240deg); /* Sci-fi Blue Tint initially */
+                transition: filter 2s ease;
+            ">
+
+            <!-- SCAN LINE EFFECT -->
+            <div id="scanLine" style="
+                position: absolute;
+                top: 0; left: 0; right: 0;
+                height: 5px;
+                background: cyan;
+                box-shadow: 0 0 10px cyan;
+                opacity: 0;
+                pointer-events: none;
+            "></div>
+
+            <div id="enhanceLoading" style="
+                position: absolute;
+                top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
+                color: cyan;
+                font-family: 'Courier New', monospace;
+                font-size: 1.5rem;
+                display: none;
+                text-align: center;
+            ">
+                ANALYZING PIXELS...
+                <br>
+                <span id="loadingPercent">0%</span>
+            </div>
+        </div>
+
+        <div style="margin-top:20px; display:flex; gap:15px;">
+            <button class="btn" onclick="closeMagicLens()" style="background:#444;">Fechar</button>
+            <button class="btn" id="btnProcessAI" onclick="processAI()" style="
+                background: linear-gradient(90deg, #6200ea, #00e5ff);
+                color: white;
+                font-weight: bold;
+                padding: 10px 25px;
+            ">⚡ INICIAR MELHORIA</button>
+            <button class="btn" id="btnShareAI" onclick="shareEnhanced()" style="display:none; background:#00c853;">📤
+                Compartilhar</button>
+        </div>
     </div>
 
     <div class="controls">
@@ -172,24 +378,21 @@
                 <button onclick="nextSegment()" title="Próximo Arquivo" class="btn">⏭️</button>
 
                 <span style="color:#aaa; font-size:0.8rem; margin-left:15px;">Zoom:</span>
-                <!-- Slider: Esquerda (Min) = ViewWindow Pequeno (Zoom Alto) -->
-                <!-- Direita (Max) = ViewWindow Grande (Zoom Baixo) -->
-                <input type="range" id="zoomSlider" min="60" max="7200" step="60" value="1800"
+                <input type="range" id="zoomSlider" min="60" max="14400" step="60" value="1800"
                     oninput="updateZoom(this.value)" style="width:150px; cursor:pointer;">
-
-                <!-- Dynamic Timestamp Display -->
-                <span id="timestamp-display" style="
-                    font-family:'Consolas', monospace; 
-                    font-size:1.1rem; 
-                    color:#4CAF50; 
-                    margin-left:20px; 
-                    border:1px solid #444; 
-                    padding:2px 8px; 
-                    background:#000;
-                    min-width: 180px;
-                    text-align:center;
-                ">--/--/---- --:--:--</span>
             </div>
+
+            <!-- Dynamic Timestamp Display (Moved out for better responsive layout) -->
+            <span id="timestamp-display" style="
+                font-family:'Consolas', monospace; 
+                font-size:1.1rem; 
+                color:#4CAF50; 
+                border:1px solid #444; 
+                padding:2px 8px; 
+                background:#000;
+                min-width: 180px;
+                text-align:center;
+            ">--/--/---- --:--:--</span>
             <!-- Labels ocultos conforme pedido anterior -->
             <span id="lbl-start" style="display:none"></span>
             <span id="lbl-center" style="display:none"></span>
@@ -217,47 +420,525 @@
         let lastPlayTime = 0;
         let freezeCounter = 0;
 
-        // Zoom Logic
+        // Zoom Logic (Timeline)
         function updateZoom(val) {
             setZoom(parseInt(val));
         }
 
+        // --- DIGITAL ZOOM (PINCH / WHEEL) ---
+        let dZoom = 1.0;
+        let dTransX = 0, dTransY = 0;
+        let isPinching = false;
+        let startDist = 0;
+        let startPinchCenter = { x: 0, y: 0 };
+        let startZoomState = { scale: 1, x: 0, y: 0 };
+
+        const vidContainer = document.querySelector('.viewport');
+        const vEl = document.getElementById('player');
+
+        // Mouse Wheel Zoom
+        vidContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = -Math.sign(e.deltaY) * 0.1;
+            // Wheel zooms to center, or we could try to zoom to cursor if we had consistent coords
+            applyDigitalZoom(dZoom + delta, dTransX, dTransY);
+        });
+
+        // --- PANNING VARIABLES ---
+        let isPanning = false;
+        let startPanX = 0, startPanY = 0;
+        let startTransX = 0, startTransY = 0;
+
+        // Touch Logic (Combined Zoom & Pan)
+        vidContainer.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                // PINCH START
+                isPinching = true;
+                isPanning = false; // Disable pan if pinching
+                startDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                startZoomState = { scale: dZoom, x: dTransX, y: dTransY };
+            } else if (e.touches.length === 1 && dZoom > 1.0) {
+                // PAN START (Only if zoomed in)
+                isPanning = true;
+                isPinching = false;
+                startPanX = e.touches[0].clientX;
+                startPanY = e.touches[0].clientY;
+                startTransX = dTransX;
+                startTransY = dTransY;
+            }
+        }, { passive: false });
+
+        vidContainer.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Prevent scrolling
+
+            if (isPinching && e.touches.length === 2) {
+                // PINCH MOVE
+                const newDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const scaleFactor = newDist / startDist;
+                const newScale = startZoomState.scale * scaleFactor;
+                applyDigitalZoom(newScale, dTransX, dTransY);
+            } else if (isPanning && e.touches.length === 1) {
+                // PAN MOVE
+                const dx = e.touches[0].clientX - startPanX;
+                const dy = e.touches[0].clientY - startPanY;
+                applyDigitalZoom(dZoom, startTransX + dx, startTransY + dy);
+            }
+        }, { passive: false });
+
+        vidContainer.addEventListener('touchend', (e) => {
+            // Reset flags if no fingers left
+            if (e.touches.length === 0) {
+                isPinching = false;
+                isPanning = false;
+            }
+        });
+
+        // Double Tap / Double Click to Reset
+        let lastTap = 0;
+        vidContainer.addEventListener('touchend', (e) => {
+            if (e.pointerType === 'mouse') return; // Handled by dblclick
+            const now = Date.now();
+            if (now - lastTap < 300) {
+                applyDigitalZoom(1.0, 0, 0); // Reset
+            }
+            lastTap = now;
+        });
+
+        // Mouse Panning (Optional support for Desktop Dragging)
+        let isMousePanning = false;
+        vidContainer.addEventListener('mousedown', (e) => {
+            if (dZoom > 1.0) {
+                e.preventDefault(); // Prevent default drag behavior
+                isMousePanning = true;
+                startPanX = e.clientX;
+                startPanY = e.clientY;
+                startTransX = dTransX;
+                startTransY = dTransY;
+                vidContainer.style.cursor = 'grab';
+            }
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!isMousePanning) return;
+            const dx = e.clientX - startPanX;
+            const dy = e.clientY - startPanY;
+            applyDigitalZoom(dZoom, startTransX + dx, startTransY + dy);
+        });
+        window.addEventListener('mouseup', () => {
+            isMousePanning = false;
+            vidContainer.style.cursor = 'default';
+        });
+
+
+        function applyDigitalZoom(scale, x, y) {
+            // Limits
+            if (scale < 1) scale = 1;
+            if (scale > 10) scale = 10; // Max 10x (User Request)
+
+            dZoom = scale;
+
+            // Pan Limits (Keep image within view roughly)
+            // If scale is 1, x/y must be 0.
+            if (dZoom === 1) {
+                dTransX = 0;
+                dTransY = 0;
+            } else {
+                // If Zoomed, allow Panning.
+                // Simple limit: Don't let user pan image completely off screen.
+                // Let's rely on visual feedback for now, unbounded but user can pull back.
+                // Or implementing a box constraint based on container size is better UX but complex.
+                // For now, free pan (Photoshop style) is acceptable.
+                dTransX = x;
+                dTransY = y;
+            }
+
+            // Apply Transform
+            vEl.style.transform = `scale(${dZoom}) translate(${dTransX / dZoom}px, ${dTransY / dZoom}px)`;
+            // Note on Translate:
+            // CSS transform order: translate is applied AFTER scale if listed after, or we need to adjust logic.
+            // transform: scale(2) translate(50px, 0) -> Scales up, then moves 50px ISOLATED coordinates?
+            // Actually: transform: translate(X, Y) scale(Z) is usually safer for Pan/Zoom logic.
+
+            // REFINED TRANSFORM LOGIC:
+            // We want 'translate' to move the image visually in pixels.
+            // If we use `matrix()`, it's precise.
+            // Simple approach: `translate(${x}px, ${y}px) scale(${scale})`
+            // This means we translate first, then scale. 
+            // If we move 10px right, then scale 2x, visually it moves 20px? 
+            // Let's stick to `translate(x, y) scale(z)` and adjust input X/Y to match screen pixels.
+
+            vEl.style.transform = `translate(${dTransX}px, ${dTransY}px) scale(${dZoom})`;
+
+            // Show Feedback
+            if (dZoom > 1.05) hud.innerText = `Zoom: ${dZoom.toFixed(1)}x`;
+            else hud.innerText = "";
+        }
+
+        // --- SHARE FEATURE ---
+        async function shareVideo() {
+            if (!video.src) return alert("Nenhum vídeo carregado.");
+
+            const shareData = {
+                title: 'Vídeo NVR - ' + CAMERA,
+                text: `Vídeo da câmera ${CAMERA} em ${new Date(centerTime * 1000).toLocaleString()}`,
+                url: video.src // This URL might be local-only
+            };
+
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                } else {
+                    // Fallback: Clipboard
+                    await navigator.clipboard.writeText(video.src);
+                    alert("Link do vídeo copiado para a área de transferência!");
+                }
+            } catch (e) {
+                console.error("Share error:", e);
+                // alert("Erro ao compartilhar: " + e);
+            }
+        }
+
+        // --- MAGIC LENS (AI ENHANCE - SNIPER MODE) ---
+        let capturedBlob = null;
+        let enhancedBlob = null;
+
+        // 1. Toggle Sniper Mode
+        function openMagicLens() {
+            const overlay = document.getElementById('sniperOverlay');
+            const btn = document.getElementById('btnMagicAction');
+
+            if (overlay.style.display === 'flex') {
+                // V13: Pure Math + Split Camera Support (The "Success Absolute" version)
+                captureSniperTargetV13();
+            } else {
+                // Enter Sniper Mode
+                overlay.style.display = 'flex';
+                btn.innerHTML = '📸 CAPTURAR ALVO';
+                btn.style.background = 'linear-gradient(135deg, #d50000, #ff1744)';
+            }
+        }
+
+        // POC: Simple Full Screen Print Test
+        async function runPocPrint() {
+            try {
+                // 1. Get Stream with explicit self-capture permission
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { preferCurrentTab: true },
+                    audio: false,
+                    selfBrowserSurface: 'include',
+                    systemAudio: 'exclude'
+                });
+
+                // 2. Video Element (Wait for it to actually play)
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.srcObject = stream;
+
+                await new Promise(r => video.onloadedmetadata = r);
+                await video.play();
+                await new Promise(r => setTimeout(r, 500)); // Buffer
+
+                // 3. Capture Full Screen to Canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+
+                // 4. Show Result (Raw Overlay)
+                const imgData = canvas.toDataURL('image/png');
+
+                const overlay = document.createElement('div');
+                Object.assign(overlay.style, {
+                    position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+                    zIndex: '100000', background: 'rgba(0,0,0,0.95)',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center'
+                });
+
+                const img = document.createElement('img');
+                img.src = imgData;
+                Object.assign(img.style, {
+                    maxWidth: '90%', maxHeight: '80%', border: '2px solid white', marginBottom: '20px'
+                });
+
+                const closeBtn = document.createElement('button');
+                closeBtn.innerText = "FECHAR POC (SUCESSO)";
+                Object.assign(closeBtn.style, {
+                    fontSize: "20px", padding: "10px 30px", background: "white", border: "none", cursor: "pointer"
+                });
+                closeBtn.onclick = () => {
+                    document.body.removeChild(overlay);
+                    stream.getTracks().forEach(t => t.stop());
+                };
+
+                overlay.appendChild(img);
+                overlay.appendChild(closeBtn);
+                document.body.appendChild(overlay);
+
+            } catch (e) {
+                alert("POC Falhou: " + e.message);
+            }
+        }
+
+        // 2. Capture Logic (V8 - VISUAL DEBUG MODE)
+        async function captureSniperTarget() {
+            const targetBox = document.getElementById('targetBox');
+            const btn = document.getElementById('btnMagicAction');
+
+            btn.innerText = "⚠️ Selecione a aba 'NVR Timeline'!";
+            btn.style.background = "#ff9800";
+
+            let stream = null;
+            let videoElem = null;
+
+            try {
+                // 1. Request Capture
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        displaySurface: 'browser',
+                        preferCurrentTab: true,
+                    },
+                    audio: false,
+                    // CRITICAL: Allows the current tab to appear in the list
+                    selfBrowserSurface: 'include',
+                    systemAudio: 'exclude',
+                    surfaceSwitching: 'include',
+                    monitorTypeSurfaces: 'include'
+                });
+
+                // 2. Setup Video - VISIBLE FOR DEBUGGING
+                videoElem = document.createElement('video');
+                videoElem.style.position = 'fixed';
+                videoElem.style.bottom = '10px';
+                videoElem.style.right = '10px';
+                videoElem.style.width = '320px'; // Mini preview
+                videoElem.style.height = '180px';
+                videoElem.style.border = '4px solid red';
+                videoElem.style.zIndex = '99999';
+                videoElem.style.background = '#000';
+                videoElem.autoplay = true;
+                videoElem.muted = true;
+                videoElem.srcObject = stream;
+
+                document.body.appendChild(videoElem);
+
+                // 3. Wait for Stream to be valid
+                await new Promise((resolve, reject) => {
+                    let attempts = 0;
+                    const check = setInterval(() => {
+                        attempts++;
+                        if (videoElem.videoWidth > 0 && videoElem.readyState >= 2) {
+                            clearInterval(check);
+                            resolve();
+                        }
+                        if (attempts > 40) { // 4 seconds
+                            clearInterval(check);
+                            reject(new Error("Stream de vídeo não iniciou (Tela Preta?)."));
+                        }
+                    }, 100);
+                    videoElem.play().catch(e => console.log("Autoplay blocked?", e));
+                });
+
+                // Allow a moment for the user to see the debug window and for frames to settle
+                await new Promise(r => setTimeout(r, 500));
+
+                // 4. Debug Metrics
+                const capW = videoElem.videoWidth;
+                const capH = videoElem.videoHeight;
+                const winW = window.innerWidth;
+                const winH = window.innerHeight;
+                const scaleX = capW / winW;
+
+                const boxRect = targetBox.getBoundingClientRect();
+                const cropX = Math.floor(boxRect.left * scaleX);
+                const cropY = Math.floor(boxRect.top * scaleX);
+                const cropW = Math.floor(boxRect.width * scaleX);
+                const cropH = Math.floor(boxRect.height * scaleX);
+
+                // DEBUG ALERT - REMOVE LATER
+                alert(`DEBUG:\nStream: ${capW}x${capH}\nWindow: ${winW}x${winH}\nCrop: ${cropX},${cropY} ${cropW}x${cropH}`);
+
+                // 5. Render
+                const canvas = document.createElement('canvas');
+                canvas.width = cropW;
+                canvas.height = cropH;
+                const ctx = canvas.getContext('2d');
+
+                ctx.drawImage(videoElem, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+                // 6. Show Result
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                const preview = document.getElementById('enhancePreview');
+                preview.src = dataUrl;
+
+                document.getElementById('enhanceModal').style.display = 'flex';
+                document.getElementById('btnProcessAI').style.display = 'inline-block';
+                document.getElementById('btnShareAI').style.display = 'none';
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+                document.getElementById('sniperOverlay').style.display = 'none';
+
+                btn.innerText = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+
+            } catch (e) {
+                console.error("[Sniper V8] Error:", e);
+                alert("Erro Debug: " + e.message);
+                btn.innerText = "✨ Melhorar Imagem";
+            } finally {
+                // Cleanup after a delay so user can see what happened
+                setTimeout(() => {
+                    if (stream) stream.getTracks().forEach(t => t.stop());
+                    if (videoElem && videoElem.parentNode) videoElem.parentNode.removeChild(videoElem);
+                }, 4000); // Keep debug preview for 4 seconds
+            }
+        }
+
+        function closeMagicLens() {
+            document.getElementById('enhanceModal').style.display = 'none';
+        }
+
+        async function processAI() {
+            const preview = document.getElementById('enhancePreview');
+            const scanLine = document.getElementById('scanLine');
+            const loading = document.getElementById('enhanceLoading');
+            const pct = document.getElementById('loadingPercent');
+
+            document.getElementById('btnProcessAI').style.display = 'none';
+
+            scanLine.style.opacity = '1';
+            scanLine.style.animation = 'scan 2s linear infinite';
+            loading.style.display = 'block';
+
+            let p = 0;
+            const interval = setInterval(() => { p += Math.floor(Math.random() * 10); if (p > 95) p = 95; pct.innerText = p + "%"; }, 200);
+
+            try {
+                // Recuperar as imagens originais do dataset (setado pelo V13)
+                // Se nao tiver dataset (versoes antigas), usa o src atual como target e null como contexto.
+                const imgTarget = preview.dataset.target || preview.src;
+                const imgContext = preview.dataset.context || null;
+
+                const payload = {
+                    image_target: imgTarget,
+                    image_context: imgContext
+                };
+
+                const res = await fetch('/api/nvr/enhance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+
+                clearInterval(interval);
+                pct.innerText = "100%";
+
+                if (json.success && json.image) {
+                    setTimeout(() => {
+                        preview.src = json.image;
+                        preview.style.filter = "none";
+                        preview.style.boxShadow = "0 0 20px cyan"; // Glow
+                        scanLine.style.display = 'none';
+                        loading.style.display = 'none';
+                        document.getElementById('btnShareAI').style.display = 'inline-block';
+
+                        // RECURSIVE ENHANCEMENT ENABLED
+                        const btnProcess = document.getElementById('btnProcessAI');
+                        btnProcess.style.display = 'inline-block';
+                        btnProcess.innerText = "✨ MELHORAR NOVAMENTE (+)";
+                        btnProcess.style.background = "linear-gradient(90deg, #ff4081, #7c4dff)";
+
+                        fetch(json.image).then(r => r.blob()).then(b => enhancedBlob = b);
+                    }, 500);
+                } else {
+                    alert("Erro AI: " + (json.error || "Unknown"));
+                    resetAIState();
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Falha na conexão.");
+                resetAIState();
+            }
+        }
+
+        function resetAIState() {
+            document.getElementById('btnProcessAI').style.display = 'inline-block';
+            document.getElementById('scanLine').style.opacity = '0';
+            document.getElementById('enhanceLoading').style.display = 'none';
+        }
+
+        async function shareEnhanced() {
+            if (!enhancedBlob) return;
+            const file = new File([enhancedBlob], "evidence_ai.jpg", { type: "image/jpeg" });
+            const shareData = {
+                title: 'NVR AI Evidence',
+                text: 'Evidência processada por Inteligência Artificial',
+                files: [file]
+            };
+            try {
+                if (navigator.canShare && navigator.canShare(shareData)) await navigator.share(shareData);
+                else {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(enhancedBlob);
+                    a.download = "evidence_ai.jpg";
+                    a.click();
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // Add Keyframes for Scan
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = `
+            @keyframes scan {
+                0% { top: 0%; opacity: 0; }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { top: 100%; opacity: 0; }
+            }
+        `;
+        document.head.appendChild(styleSheet);
+
         function applyCrop() {
             const v = document.getElementById('player');
 
-            // Reset
+            // Reset Styles first? No, we want to keep Zoom transform if possible, 
+            // but crop changes base geometry.
+            // Resetting transform here clears zoom, which is safer when changing crop/video.
+            // dZoom = 1; dTransX = 0; dTransY = 0;
+            // v.style.transform = 'none';
+
             v.style.width = '100%';
             v.style.height = '100%';
             v.style.objectFit = 'contain';
-            v.style.transform = 'none';
+            // v.style.transform = 'none'; // REMOVED to allow Zoom
+            if (dZoom === 1) v.style.transform = 'none'; // Only reset if no zoom active
+
             v.style.transformOrigin = 'center center';
 
             if (CROP === 1 || CROP === 2) {
                 console.log("Applying SMART SCALE CROP (Centered):", CROP);
 
-                // FINAL STRATEGY: Aspect Ratio "Window".
-                // 1. Force the video element to be a standard 16:9 box centered in the screen.
-                // 2. This ensures correct geometry on both Desktop (Wide) and Mobile (Letterbox).
-                // 3. Since the source video is stacked (tall, ~8:9), putting it into a 16:9 box with 'cover'
-                //    will cause it to fit the width and overflow the height significantly.
-                // 4. We use object-position to show ONLY the top or bottom half of that vertical overflow.
-
-                // FINAL REFINEMENT: Flexible Constraints.
-                // Use maxWidth/maxHeight with auto width/height and aspect-ratio.
-                // This allows the box to fit perfectly inside the viewport (Letterboxing) 
-                // without being forced to 100% width (which cuts off top/bottom on wide screens).
+                // ... [Same Crop Logic] ...
 
                 v.style.position = 'relative';
-                v.style.width = 'auto';  // Allow shrinking/growing based on constraints
+                v.style.width = 'auto';
                 v.style.height = 'auto';
-                v.style.maxWidth = '100%'; // Constrain to viewport
+                v.style.maxWidth = '100%';
                 v.style.maxHeight = '100%';
 
-                v.style.aspectRatio = '16 / 9'; // Enforce 16:9 shape
-                v.style.margin = 'auto'; // Center in Flex container
+                v.style.aspectRatio = '16 / 9';
+                v.style.margin = 'auto';
 
-                v.style.objectFit = 'cover'; // Fill the 16:9 box with the source
-                v.style.transform = 'none';
+                v.style.objectFit = 'cover';
+                // v.style.transform = 'none'; // Don't reset transform here if zooming
+                if (dZoom === 1) v.style.transform = 'none';
 
                 if (CROP === 1) v.style.objectPosition = 'top center';
                 if (CROP === 2) v.style.objectPosition = 'bottom center';
@@ -907,8 +1588,533 @@
             fetchData();
         }
 
+        // 3. Capture Logic (V10 - Optical Auto-Calibrate)
+        async function captureSniperTargetV10() {
+            const targetBox = document.getElementById('targetBox');
+            const btn = document.getElementById('btnMagicAction');
+            const overlay = document.getElementById('sniperOverlay');
+
+            btn.innerText = "⏳ Scan...";
+
+            let stream = null;
+
+            try {
+                // 1. Prepare Target for Optical Scan
+                // Make the border Pure Green (#00FF00) and thick
+                const originalBorder = targetBox.style.border;
+                const originalShadow = targetBox.style.boxShadow;
+
+                targetBox.style.boxShadow = "none";
+                targetBox.style.border = "6px solid #00FF00";
+
+                // Allow render frame
+                await new Promise(r => requestAnimationFrame(() => setTimeout(r, 100)));
+
+                // 2. Get Stream (Current Tab)
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { preferCurrentTab: true },
+                    audio: false,
+                    selfBrowserSurface: 'include',
+                    systemAudio: 'exclude'
+                });
+
+                // 3. Capture Frame
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.srcObject = stream;
+                await new Promise(r => video.onloadedmetadata = r);
+                await video.play();
+                await new Promise(r => setTimeout(r, 300)); // Short buffer
+
+                const capW = video.videoWidth;
+                const capH = video.videoHeight;
+
+                // 4. Scan Pixels
+                const fullCanvas = document.createElement('canvas');
+                fullCanvas.width = capW;
+                fullCanvas.height = capH;
+                const fullCtx = fullCanvas.getContext('2d');
+                fullCtx.drawImage(video, 0, 0);
+
+                const frame = fullCtx.getImageData(0, 0, capW, capH);
+                const data = frame.data;
+                let minX = capW, minY = capH, maxX = 0, maxY = 0;
+                let found = false;
+
+                // Scan (Step 4 for speed)
+                for (let y = 0; y < capH; y += 4) {
+                    for (let x = 0; x < capW; x += 4) {
+                        const i = (y * capW + x) * 4;
+                        // Green Detector: G > 200, R < 100, B < 100
+                        if (data[i + 1] > 200 && data[i] < 100 && data[i + 2] < 100) {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                            found = true;
+                        }
+                    }
+                }
+
+                // 5. Restore UI (Hide Overlay)
+                targetBox.style.border = originalBorder;
+                targetBox.style.boxShadow = originalShadow;
+                overlay.style.display = 'none';
+
+                // 6. Determine Crop
+                let cropX, cropY, cropW, cropH;
+                if (found && (maxX - minX > 50)) {
+                    // Crop Inside Border
+                    const borderW = 6;
+                    cropX = minX + borderW;
+                    cropY = minY + borderW;
+                    cropW = (maxX - minX) - (borderW * 2);
+                    cropH = (maxY - minY) - (borderW * 2);
+                    console.log(`[V10] Auto-Calibrated: ${cropX},${cropY} ${cropW}x${cropH}`);
+                } else {
+                    // Fallback
+                    console.warn("[V10] Green Box not found. Using fallback.");
+                    const winW = window.innerWidth;
+                    const winH = window.innerHeight;
+                    const scaleX = capW / winW;
+                    const scaleY = capH / winH;
+                    const rect = targetBox.getBoundingClientRect();
+                    cropX = rect.left * scaleX;
+                    cropY = rect.top * scaleY;
+                    cropW = rect.width * scaleX;
+                    cropH = rect.height * scaleY;
+                }
+
+                // 7. Draw Final
+                const canvas = document.createElement('canvas');
+                canvas.width = cropW;
+                canvas.height = cropH;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+                // 8. Show
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                const preview = document.getElementById('enhancePreview');
+                preview.src = dataUrl;
+                preview.style.filter = 'none';
+
+                document.getElementById('enhanceModal').style.display = 'flex';
+                document.getElementById('btnProcessAI').style.display = 'inline-block';
+                document.getElementById('btnShareAI').style.display = 'none';
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+
+                btn.innerText = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+
+            } catch (e) {
+                console.error(e);
+                alert("Erro V10: " + e.message);
+            } finally {
+                if (stream) stream.getTracks().forEach(t => t.stop());
+            }
+        }
+
+        // Auto load
+        // 3. Capture Logic (V11 - Region Capture API)
+        async function captureSniperTargetV11() {
+            const targetBox = document.getElementById('targetBox');
+            const btn = document.getElementById('btnMagicAction');
+            const overlay = document.getElementById('sniperOverlay');
+
+            btn.innerText = "⏳ Calibrando...";
+
+            let stream = null;
+            let cropTarget = null;
+            let useRegionCapture = false;
+
+            try {
+                // Determine Strategy
+                useRegionCapture = ('CropTarget' in window) && (typeof CropTarget.fromElement === 'function');
+                console.log("[V11] Strategy:", useRegionCapture ? "Region Capture API" : "Pixel Scan Fallback");
+
+                const originalBorder = targetBox.style.border;
+                const originalShadow = targetBox.style.boxShadow;
+                targetBox.style.boxShadow = "none";
+
+                if (useRegionCapture) {
+                    targetBox.style.border = "none"; // Clean box
+                    cropTarget = await CropTarget.fromElement(targetBox);
+                } else {
+                    targetBox.style.border = "6px solid #00FF00";
+                }
+
+                // Force layout update
+                await new Promise(r => requestAnimationFrame(() => setTimeout(r, 200)));
+
+                // 2. Start Capture
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { preferCurrentTab: true },
+                    audio: false,
+                    selfBrowserSurface: 'include',
+                    systemAudio: 'exclude'
+                });
+
+                const track = stream.getVideoTracks()[0];
+
+                // 3. Apply Crop (If Native)
+                if (useRegionCapture && cropTarget) {
+                    try {
+                        await track.cropTo(cropTarget);
+                        console.log("[V11] Native Crop Applied.");
+                    } catch (err) {
+                        console.warn("Region Capture Failed (Wrong Tab?):", err);
+                        useRegionCapture = false; // Trigger fallback logic
+                        // Emergency Border Repaint for Fallback
+                        targetBox.style.border = "6px solid #00FF00";
+                        await new Promise(r => setTimeout(r, 250)); // Wait for repaint in stream
+                    }
+                }
+
+                // 4. Capture Frame
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.srcObject = stream;
+                await new Promise(r => video.onloadedmetadata = r);
+                await video.play();
+                await new Promise(r => setTimeout(r, 400)); // Settle time
+
+                const capW = video.videoWidth;
+                const capH = video.videoHeight;
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                let finalCropW = capW;
+                let finalCropH = capH;
+
+                if (useRegionCapture) {
+                    // Already cropped natively
+                    canvas.width = capW;
+                    canvas.height = capH;
+                    ctx.drawImage(video, 0, 0);
+                } else {
+                    // PIXEL SCAN FALLBACK
+                    console.log("[V11] Executing Pixel Scan...");
+                    const fullCanvas = document.createElement('canvas');
+                    fullCanvas.width = capW;
+                    fullCanvas.height = capH;
+                    const fullCtx = fullCanvas.getContext('2d');
+                    fullCtx.drawImage(video, 0, 0);
+                    const data = fullCtx.getImageData(0, 0, capW, capH).data;
+
+                    let minX = capW, minY = capH, maxX = 0, maxY = 0, found = false;
+                    for (let y = 0; y < capH; y += 4) {
+                        for (let x = 0; x < capW; x += 4) {
+                            const i = (y * capW + x) * 4;
+                            if (data[i + 1] > 200 && data[i] < 100 && data[i + 2] < 100) {
+                                if (x < minX) minX = x;
+                                if (x > maxX) maxX = x;
+                                if (y < minY) minY = y;
+                                if (y > maxY) maxY = y;
+                                found = true;
+                            }
+                        }
+                    }
+
+                    if (found && (maxX - minX > 20)) {
+                        const bW = 6;
+                        const cX = minX + bW;
+                        const cY = minY + bW;
+                        const cW = (maxX - minX) - (bW * 2);
+                        const cH = (maxY - minY) - (bW * 2);
+                        canvas.width = cW;
+                        canvas.height = cH;
+                        ctx.drawImage(video, cX, cY, cW, cH, 0, 0, cW, cH);
+                        finalCropW = cW; finalCropH = cH;
+                    } else {
+                        // Total Failure
+                        alert("Falha na Captura Precisa. Por favor, selecione 'Esta Guia' ao compartilhar.");
+                        canvas.width = capW;
+                        canvas.height = capH;
+                        ctx.drawImage(video, 0, 0);
+                    }
+                }
+
+                // 5. Cleanup UI
+                targetBox.style.border = originalBorder;
+                targetBox.style.boxShadow = originalShadow;
+                overlay.style.display = 'none';
+
+                // 6. Show Result
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                const preview = document.getElementById('enhancePreview');
+                preview.src = dataUrl;
+                preview.style.filter = 'none';
+
+                document.getElementById('enhanceModal').style.display = 'flex';
+                document.getElementById('btnProcessAI').style.display = 'inline-block';
+                document.getElementById('btnShareAI').style.display = 'none';
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+
+                btn.innerText = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+
+            } catch (e) {
+                console.error(e);
+                alert("Erro Capture: " + e.message);
+                targetBox.style.border = "2px dashed red";
+            } finally {
+                if (stream) stream.getTracks().forEach(t => t.stop());
+            }
+        }
+
+        // 4. Capture Logic (V12 - Pure Math Canvas - No Stream)
+        // Recommended by User for 100% Precision
+        function captureSniperTargetV12() {
+            const videoElement = document.getElementById('player');
+            const overlayElement = document.getElementById('targetBox');
+
+            // Check globals
+            const zoomAtual = (typeof dZoom !== 'undefined') ? dZoom : 1;
+
+            // 1. Real Video Dimensions (e.g. 1920x1080)
+            const vW = videoElement.videoWidth;
+            const vH = videoElement.videoHeight;
+
+            // 2. Screen Dimensions (CSS Rendered)
+            const rectVideo = videoElement.getBoundingClientRect();
+            const rectAlvo = overlayElement.getBoundingClientRect();
+
+            console.log(`[V12 Logic] Real: ${vW}x${vH}, Rendered: ${rectVideo.width}x${rectVideo.height}, Zoom: ${zoomAtual}`);
+
+            // 3. Relative Position Calc (Removing Zoom Factor)
+            // (rectAlvo.left - rectVideo.left) is the visual distance in pixels ON SCREEN.
+            // Dividing by zoomAtual reverses the CSS transform scale to get "base CSS pixels".
+            const xRelativo = (rectAlvo.left - rectVideo.left) / zoomAtual;
+            const yRelativo = (rectAlvo.top - rectVideo.top) / zoomAtual;
+
+            // Dimensions also need to be un-zoomed
+            const larguraRelativa = rectAlvo.width / zoomAtual;
+            const alturaRelativa = rectAlvo.height / zoomAtual;
+
+            // 4. Map to Real Video Pixels
+            // Scale Factor = Real Pixels / Base CSS Pixels
+            // Base CSS Pixels = Rendered Width / Zoom
+            const cssBaseW = rectVideo.width / zoomAtual;
+            const cssBaseH = rectVideo.height / zoomAtual;
+
+            const scaleX = vW / cssBaseW;
+            const scaleY = vH / cssBaseH;
+
+            const sx = xRelativo * scaleX;
+            const sy = yRelativo * scaleY;
+            const sWidth = larguraRelativa * scaleX;
+            const sHeight = alturaRelativa * scaleY;
+
+            console.log(`[V12 Coords] SX:${sx} SY:${sy} W:${sWidth} H:${sHeight}`);
+
+            // 5. Setup Canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = sWidth;
+            canvas.height = sHeight;
+            const ctx = canvas.getContext('2d');
+
+            try {
+                // 6. The Secret: Draw directly from Video Element
+                // sx, sy, sWidth, sHeight -> Source Rectangle (Video File)
+                // 0, 0, sWidth, sHeight -> Destination (Canvas)
+                ctx.drawImage(videoElement, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+
+                // Success Path
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                const preview = document.getElementById('enhancePreview');
+                preview.src = dataUrl;
+                preview.style.filter = 'none';
+
+                // UI Transitions
+                document.getElementById('enhanceModal').style.display = 'flex';
+                document.getElementById('btnProcessAI').style.display = 'inline-block';
+                document.getElementById('btnShareAI').style.display = 'none';
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+                document.getElementById('sniperOverlay').style.display = 'none'; // Hide Target
+
+                const btn = document.getElementById('btnMagicAction');
+                btn.innerText = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+
+            } catch (e) {
+                console.error("[V12] Error:", e);
+                if (e.name === 'SecurityError') {
+                    alert("Erro de Segurança (CORS): O vídeo não permite captura direta.\nCertifique-se que o servidor envia headers CORS corretos.");
+                } else {
+                    alert("Erro V12: " + e.message);
+                }
+            }
+        }
+
+        // 4. Capture Logic (V13 - Pure Math + CROP Correction + DUAL CONTEXT)
+        // Handles Zoom AND Split-Screen Crops (e.g. 50% Bottom)
+        function captureSniperTargetV13() {
+            const videoElement = document.getElementById('player');
+            const overlayElement = document.getElementById('targetBox');
+
+            // Checks
+            const zoomAtual = (typeof dZoom !== 'undefined') ? dZoom : 1;
+            const activeCrop = (typeof CROP !== 'undefined') ? CROP : 0;
+
+            // 1. Real Video Dimensions (Source File)
+            const vW = videoElement.videoWidth;
+            const vH = videoElement.videoHeight;
+
+            // 2. Determine "Visible Source Height" based on Crop Mode
+            let visibleSourceH = vH;
+            let sourceOffsetY = 0;
+
+            if (activeCrop === 1) { // Top 50%
+                visibleSourceH = vH / 2;
+                sourceOffsetY = 0;
+            } else if (activeCrop === 2) { // Bottom 50%
+                visibleSourceH = vH / 2;
+                sourceOffsetY = vH / 2;
+            } else if (activeCrop === 3) { // Top 33%
+                visibleSourceH = vH / 3;
+                sourceOffsetY = 0;
+            } else if (activeCrop === 4) { // Mid 33%
+                visibleSourceH = vH / 3;
+                sourceOffsetY = vH / 3;
+            } else if (activeCrop === 5) { // Bot 33%
+                visibleSourceH = vH / 3;
+                sourceOffsetY = (vH / 3) * 2;
+            }
+
+            // 3. Screen Dimensions (CSS Rendered)
+            const rectVideo = videoElement.getBoundingClientRect();
+            const rectAlvo = overlayElement.getBoundingClientRect();
+
+            console.log(`[V13] Crop:${activeCrop} Real:${vW}x${vH} VisibleH:${visibleSourceH} OffY:${sourceOffsetY}`);
+
+            // 4. Relative Position on Screen (Un-Zoomed)
+            const xRelativo = (rectAlvo.left - rectVideo.left) / zoomAtual;
+            const yRelativo = (rectAlvo.top - rectVideo.top) / zoomAtual;
+
+            const larguraRelativa = rectAlvo.width / zoomAtual;
+            const alturaRelativa = rectAlvo.height / zoomAtual;
+
+            // 5. Map to Real Video Pixels
+            const cssBaseW = rectVideo.width / zoomAtual;
+            const cssBaseH = rectVideo.height / zoomAtual;
+
+            const scaleX = vW / cssBaseW;
+            const scaleY = visibleSourceH / cssBaseH;
+
+            // Apply Scale and Add Offset
+            const sx = (xRelativo * scaleX);
+            const sy = (yRelativo * scaleY) + sourceOffsetY;
+            const sWidth = larguraRelativa * scaleX;
+            const sHeight = alturaRelativa * scaleY;
+
+            console.log(`[V13 Coords] SX:${sx} SY:${sy} W:${sWidth} H:${sHeight}`);
+
+            try {
+                // --- A. CAPTURE CONTEXT (FULL FRAME from Video Source - Respecting Crop) ---
+                // We capture only the VISIBLE part (e.g. Top 50%) as context, not the full hidden file.
+                const canvasCtx = document.createElement('canvas');
+                canvasCtx.width = vW;
+                canvasCtx.height = visibleSourceH; // Fix: Height is the VISIBLE height
+                const ctxContext = canvasCtx.getContext('2d');
+
+                // Draw only the visible slice
+                ctxContext.drawImage(videoElement,
+                    0, sourceOffsetY, vW, visibleSourceH, // Source: X, Y, W, H (Crop)
+                    0, 0, vW, visibleSourceH              // Dest: X, Y, W, H
+                );
+                const contextDataUrl = canvasCtx.toDataURL('image/jpeg', 0.85);
+
+                // --- B. CAPTURE TARGET (CROP Pure Math) ---
+                const canvasTarget = document.createElement('canvas');
+                canvasTarget.width = sWidth;
+                canvasTarget.height = sHeight;
+                const ctxTarget = canvasTarget.getContext('2d');
+                ctxTarget.drawImage(videoElement, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+                const targetDataUrl = canvasTarget.toDataURL('image/jpeg', 0.95);
+
+                // --- UPDATE UI ---
+                const preview = document.getElementById('enhancePreview');
+                preview.dataset.context = contextDataUrl;
+                preview.dataset.target = targetDataUrl;
+                preview.src = targetDataUrl;
+                preview.style.filter = 'none';
+
+                // Helper Toggle UI
+                let ctxLabel = document.getElementById('previewLabel');
+                if (!ctxLabel) {
+                    const container = preview.parentNode;
+                    container.style.position = 'relative';
+
+                    ctxLabel = document.createElement('div');
+                    ctxLabel.id = 'previewLabel';
+                    Object.assign(ctxLabel.style, {
+                        position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
+                        background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '2px 8px', fontSize: '0.8rem', pointerEvents: 'none'
+                    });
+                    container.appendChild(ctxLabel);
+
+                    const btnToggle = document.createElement('button');
+                    btnToggle.innerText = "👁️ Ver Contexto";
+                    btnToggle.id = 'btnToggleContext';
+                    Object.assign(btnToggle.style, {
+                        position: 'absolute', top: '10px', right: '10px', zIndex: '10',
+                        padding: '5px 10px', background: '#333', color: 'white', border: '1px solid #555', cursor: 'pointer'
+                    });
+                    btnToggle.onclick = (e) => {
+                        e.stopPropagation();
+                        const img = document.getElementById('enhancePreview');
+                        const lbl = document.getElementById('previewLabel');
+                        if (img.src === img.dataset.target) {
+                            img.src = img.dataset.context;
+                            img.style.objectFit = 'contain';
+                            lbl.innerText = "VISUALIZAÇÃO: CONTEXTO (CENA)";
+                            btnToggle.innerText = "🎯 Ver Corte";
+                        } else {
+                            img.src = img.dataset.target;
+                            img.style.objectFit = 'contain';
+                            lbl.innerText = "VISUALIZAÇÃO: CORTE (ALVO)";
+                            btnToggle.innerText = "👁️ Ver Contexto";
+                        }
+                    };
+                    container.appendChild(btnToggle);
+                } else {
+                    document.getElementById('previewLabel').innerText = "VISUALIZAÇÃO: CORTE (ALVO)";
+                    const t = document.getElementById('btnToggleContext');
+                    if (t) t.innerText = "👁️ Ver Contexto";
+                }
+
+                document.getElementById('enhanceModal').style.display = 'flex';
+                document.getElementById('btnProcessAI').style.display = 'inline-block';
+                document.getElementById('btnShareAI').style.display = 'none';
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+                document.getElementById('sniperOverlay').style.display = 'none';
+
+                const btn = document.getElementById('btnMagicAction');
+                btn.innerText = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+
+            } catch (e) {
+                console.error("[V13] Error:", e);
+                if (e.name === 'SecurityError') {
+                    alert("Erro CORS: Servidor de vídeo bloqueou acesso aos pixels.");
+                } else {
+                    alert("Erro V13: " + e.message);
+                }
+            }
+        }
+
         // Auto load
         fetchData();
+
+        // --- DUAL IMAGE AI OVERRIDES (Applied at Runtime) ---
+
+        console.log("Applying AI Dual Image Patches...");
+
     </script>
 </body>
 

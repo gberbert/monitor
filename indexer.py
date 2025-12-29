@@ -172,6 +172,9 @@ def get_global_config():
                 try:
                     conf["quota"] = int(v)
                 except: pass
+            
+            if k == 'gemini_api_key': conf["gemini_api_key"] = v
+            if k == 'gemini_model': conf["gemini_model"] = v
         conn.close()
     except: pass
     return conf
