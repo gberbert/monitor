@@ -235,14 +235,14 @@
             try {
                 const r = await fetch('/api/nvr/config');
                 const conf = await r.json();
-                document.getElementById('storagePath').value = conf.storage_path;
-                document.getElementById('diskQuota').value = conf.disk_quota_gb;
+                document.getElementById('storagePath').value = conf.storage_path || 'go2rtc_bin/storage';
+                document.getElementById('diskQuota').value = conf.disk_quota_gb || 500;
                 // AI
                 if (conf.gemini_api_key) document.getElementById('geminiKey').value = conf.gemini_api_key;
                 if (conf.gemini_model) document.getElementById('geminiModel').value = conf.gemini_model;
                 if (conf.gemini_model_text) document.getElementById('geminiModelText').value = conf.gemini_model_text;
                 if (conf.gemini_prompt_step_a) document.getElementById('geminiPromptA').value = conf.gemini_prompt_step_a;
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Erro ao carregar config:", e); }
 
             // 2. Load Cameras
             try {
@@ -250,8 +250,30 @@
                 const cams = await r.json();
                 renderTable(cams);
             } catch (e) {
-                document.getElementById('loading').innerText = "Erro ao carregar câmeras.";
+                console.error("Erro ao carregar câmeras:", e);
+                // document.getElementById('loading').innerText = ... (Element removed)
             }
+        }
+
+        async function saveGlobal() {
+            const data = {
+                disk_quota_gb: parseInt(document.getElementById('diskQuota').value),
+                // storage_path is fixed/disabled, but API might expect it or ignore it.
+                // sending just in case or API handles partial updates
+            };
+            try {
+                const res = await fetch('/api/nvr/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    alert('Configuração Global Salva!');
+                } else {
+                    const txt = await res.text();
+                    alert('Erro ao salvar Global: ' + res.status + ' - ' + txt);
+                }
+            } catch (e) { alert('Erro de Conexão: ' + e.message); }
         }
 
         // ... form rendering ...
