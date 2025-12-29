@@ -149,28 +149,29 @@ def get_retention_map():
     return retrieval
 
 def get_global_config():
+    # Enforce Absolute Path consistency with Recorder
+    abs_storage = os.path.join(os.path.dirname(os.path.abspath(__file__)), "go2rtc_bin", "storage")
+    
     conf = {
-        "storage_path": os.path.join(os.path.dirname(os.path.abspath(__file__)), "go2rtc_bin", "storage"),
+        "storage_path": abs_storage,
         "quota": 500
     }
+    
     if not os.path.exists(CAMERAS_DB_PATH): return conf
+    
     try:
         conn = sqlite3.connect(CAMERAS_DB_PATH)
         c = conn.cursor()
         c.execute("SELECT key, value FROM config")
         rows = c.fetchall()
         for k, v in rows:
-            if k == 'storage_path':
-                # Handle relative paths relative to go2rtc_bin (as recorder does)
-                # But indexer is in root.
-                # If path is relative 'go2rtc_bin/storage', it works from root.
-                # If path is 'storage' (default in recorder), recorder sees go2rtc_bin/storage.
-                # Indexer needs to see go2rtc_bin/storage.
-                # Logic: If absolute, use it. If relative, join with go2rtc_bin location?
-                # Simplify: Assume path is relative to ROOT or absolute.
-                # Default DB insert was 'go2rtc_bin/storage'. So root relative works.
-                conf["storage_path"] = v
-            if k == 'disk_quota_gb': conf["quota"] = int(v)
+            # IGNORAR 'storage_path' do banco. Usar Hardcoded Blindado.
+            # if k == 'storage_path': ...
+            
+            if k == 'disk_quota_gb': 
+                try:
+                    conf["quota"] = int(v)
+                except: pass
         conn.close()
     except: pass
     return conf

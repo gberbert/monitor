@@ -432,6 +432,7 @@
         let isDragging = false;
         let lastX = 0;
 
+        // MOUSE EVENTS
         container.addEventListener('mousedown', e => {
             isDragging = true;
             lastX = e.clientX;
@@ -445,16 +446,50 @@
         });
         window.addEventListener('mousemove', e => {
             if (!isDragging) return;
+            e.preventDefault(); // Prevent text selection
             const dx = e.clientX - lastX;
             lastX = e.clientX;
+            processDrag(dx);
+        });
 
+        // TOUCH EVENTS (MOBILE FIX)
+        container.addEventListener('touchstart', e => {
+            if (e.touches.length > 0) {
+                isDragging = true;
+                lastX = e.touches[0].clientX;
+                video.pause();
+            }
+        }, { passive: false }); // Needs passive:false to allow preventDefault later if needed
+
+        window.addEventListener('touchend', () => {
+            if (isDragging) {
+                isDragging = false;
+                seekTo(centerTime, false);
+            }
+        });
+
+        window.addEventListener('touchmove', e => {
+            if (!isDragging) return;
+            // Prevent scrolling page while dragging timeline
+            if (e.target.closest('.timeline-container')) {
+                e.preventDefault();
+            }
+            if (e.touches.length > 0) {
+                const clientX = e.touches[0].clientX;
+                const dx = clientX - lastX;
+                lastX = clientX;
+                processDrag(dx);
+            }
+        }, { passive: false });
+
+        function processDrag(dx) {
             // Pixels to Seconds
             const pxPerSec = canvas.width / viewWindow;
             const dt = -dx / pxPerSec;
 
             centerTime += dt;
             draw();
-        });
+        }
 
         container.addEventListener('dblclick', e => {
             // Seek to click

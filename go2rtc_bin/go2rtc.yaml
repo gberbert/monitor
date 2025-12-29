@@ -23,7 +23,6 @@ streams:
   src_12d71240: rtsp://berbert:viguera2001@192.168.3.18:554/cam/realmonitor?channel=1&subtype=0
   src_c91a292c: rtsp://berbert:viguera2001@192.168.3.37:554/cam/realmonitor?channel=1&subtype=1
   src_14ad25e1: rtsp://admin:viguera2001@192.168.3.21:554/cam/realmonitor?channel=1&subtype=0
-  src_3bc6ecf4: rtsp://admin:vigueraberbert%402025@192.168.3.125:554/cam/realmonitor?channel=1&subtype=0
 
   piscina: ffmpeg:src_5187bd74#video=h264#vf=scale=1920:1080
   piscina_mjpeg: exec:"ffmpeg" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_5187bd74" -vf "scale=640:360" -r 15 -c:v mjpeg -an -f mjpeg -
@@ -54,8 +53,3 @@ streams:
   portao_mjpeg: exec:"ffmpeg" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_14ad25e1" -vf "scale=640:360" -r 15 -c:v mjpeg -an -f mjpeg -
   portao_hd: exec:"ffmpeg" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_14ad25e1" -vf "scale=1280:720" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -
   portao_uhd: exec:"ffmpeg" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_14ad25e1" -vf "scale=1920:1080" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -
-
-  porteiro: ffmpeg:src_3bc6ecf4#video=h264#vf=scale=1920:1080
-  porteiro_mjpeg: exec:"ffmpeg" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_3bc6ecf4" -vf "scale=640:360" -r 15 -c:v mjpeg -an -f mjpeg -
-  porteiro_hd: exec:"ffmpeg" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_3bc6ecf4" -vf "scale=1280:720" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -
-  porteiro_uhd: exec:"ffmpeg" -hide_banner -rtsp_transport tcp -i "rtsp://127.0.0.1:8554/src_3bc6ecf4" -vf "scale=1920:1080" -r 24 -q:v 3 -c:v mjpeg -an -f mjpeg -

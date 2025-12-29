@@ -180,16 +180,18 @@
     <div class="section">
         <h2>Armazenamento Global</h2>
         <div class="form-group">
-            <label>Diretório de Gravação</label>
-            <input type="text" id="storagePath" placeholder="Ex: go2rtc_bin/storage ou D:/Recordings">
-            <div class="hint">Caminho onde os arquivos MP4 serão salvos. Use caminhos absolutos para maior segurança.
+            <label>Diretório de Gravação (Fixo pelo Sistema)</label>
+            <input type="text" id="storagePath" disabled
+                style="opacity:0.6; cursor:not-allowed; background:#1a1a1a; color:#888;">
+            <div class="hint">O diretório é gerenciado automaticamente pelo sistema (go2rtc_bin/storage) para garantir
+                integridade.
             </div>
         </div>
         <div class="form-group">
             <label>Quota de Disco (GB)</label>
             <input type="number" id="diskQuota" value="500">
-            <div class="hint">O sistema apagará gravações antigas quando o espaço livre for menor que 5GB ou o uso
-                exceder este valor.</div>
+            <div class="hint">A limpeza automática ocorre quando o espaço livre cai abaixo de 5GB OU quando o uso desta
+                pasta excede o valor configurado acima.</div>
         </div>
         <button class="btn-save" onclick="saveGlobal()">Salvar Global</button>
         <div style="clear:both"></div>
