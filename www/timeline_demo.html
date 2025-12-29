@@ -49,7 +49,9 @@
         }
 
         .controls {
-            height: 180px;
+            height: auto;
+            min-height: 40px;
+            padding-bottom: 5px;
             background: #1a1a1a;
             border-top: 1px solid #333;
             display: flex;
@@ -57,10 +59,12 @@
         }
 
         .timeline-container {
-            flex: 1;
+            height: 75px;
+            /* Fixed height instead of flex:1 */
             position: relative;
             overflow: hidden;
             cursor: crosshair;
+            background: #000;
         }
 
         canvas {
@@ -150,7 +154,7 @@
             /* Controls Area */
             .controls {
                 height: auto;
-                min-height: 140px;
+                min-height: 110px;
                 display: flex;
                 flex-direction: column;
             }
@@ -158,8 +162,8 @@
             .time-labels {
                 height: auto;
                 flex-direction: column;
-                padding: 10px;
-                gap: 10px;
+                padding: 5px;
+                gap: 5px;
                 background: #1a1a1a;
             }
 
@@ -196,20 +200,19 @@
             }
         }
     </style>
-</head>
-
-<body>
+    <!-- Flatpickr (Custom Calendar with Dark Theme) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <div class="header">
         <button class="btn" onclick="goBack()" style="margin-right:10px;">⬅ Voltar</button>
         <h1 id="page-title" style="text-transform:capitalize;">Câmera</h1>
         <div style="display:flex; align-items:center; gap:10px;">
             <!-- DATE FILTER -->
-            <div style="display:flex; align-items:center; background:#333; padding:2px 8px; border-radius:4px;">
-                <input type="date" id="datePicker"
-                    style="background:transparent; border:none; color:white; font-family:inherit; cursor:pointer;"
-                    onchange="handleDateFilter()">
-            </div>
+            <!-- <div style="display:flex; align-items:center; background:#333; padding:2px 8px; border-radius:4px;">
+                REMOVIDO POR SOLICITACAO - USER REQUEST ID 1346
+            </div> -->
 
             <select id="camSelector" onchange="changeCam(this.value)"
                 style="padding:5px; background:#333; color:white; border:none;">
@@ -383,27 +386,32 @@
             </div>
 
             <!-- Dynamic Timestamp Display (Moved out for better responsive layout) -->
-            <span id="timestamp-display" style="
-                font-family:'Consolas', monospace; 
-                font-size:1.1rem; 
-                color:#4CAF50; 
-                border:1px solid #444; 
-                padding:2px 8px; 
-                background:#000;
-                min-width: 180px;
-                text-align:center;
-            ">--/--/---- --:--:--</span>
-            <!-- Labels ocultos conforme pedido anterior -->
-            <span id="lbl-start" style="display:none"></span>
-            <span id="lbl-center" style="display:none"></span>
-            <span id="lbl-end" style="display:none"></span>
-        </div>
-        <div class="timeline-container" id="timeline-box">
-            <canvas id="timeline"></canvas>
-            <div id="cursor"
-                style="position:absolute; top:0; bottom:0; width:1px; background:white; left:50%; pointer-events:none;">
+            <!-- Dynamic Timestamp Display with Flatpickr -->
+            <div style="position:relative; display:inline-block;">
+                <span id="timestamp-display" style="
+                    font-family:'Consolas', monospace; 
+                    font-size:1.1rem; 
+                    color:#4CAF50; 
+                    border:1px solid #444; 
+                    padding:2px 8px; 
+                    background:#000;
+                    min-width: 180px;
+                    text-align:center;
+                    cursor: pointer;
+                " title="Clique para alterar Data/Hora">--/--/---- --:--:--</span>
             </div>
         </div>
+        <!-- Labels ocultos conforme pedido anterior -->
+        <span id="lbl-start" style="display:none"></span>
+        <span id="lbl-center" style="display:none"></span>
+        <span id="lbl-end" style="display:none"></span>
+    </div>
+    <div class="timeline-container" id="timeline-box">
+        <canvas id="timeline"></canvas>
+        <div id="cursor"
+            style="position:absolute; top:0; bottom:0; width:1px; background:white; left:50%; pointer-events:none;">
+        </div>
+    </div>
     </div>
 
     <script>
@@ -414,7 +422,8 @@
         let CROP = parseInt(urlParams.get('crop')) || 0;
 
         // Update Title immediately
-        document.getElementById('page-title').innerText = "Câmera: " + CAMERA.charAt(0).toUpperCase() + CAMERA.slice(1);
+        const safeCamName = (CAMERA && CAMERA !== 'undefined') ? CAMERA : 'Camera';
+        document.getElementById('page-title').innerText = "Câmera: " + safeCamName.charAt(0).toUpperCase() + safeCamName.slice(1);
 
         // FIXED: Variáveis globais faltantes
         let lastPlayTime = 0;
@@ -970,39 +979,93 @@
             }
         }
 
-        async function initCameras() {
+        // Global State & Utils
+        var fpInstance = null;
+
+        // Sync helper to update Flatpickr without triggering events loop
+        function syncFlatpickr(dateObj) {
+            if (fpInstance && !fpInstance.isOpen) {
+                fpInstance.setDate(dateObj, false); // false = no trigger onChange
+            }
+        }
+
+        // Initialize Global Camera List
+        let allCameras = [];
+
+        async function loadCameras() {
             try {
-                // Fetch cameras using correct API based on Env
-                // VMS API is usually on 5000 or same origin in Test
-                const vmsApiBase = isTestLab ? window.location.origin : `http://${window.location.hostname}:5000`;
-                const vmsUrl = `${vmsApiBase}/api/cameras`;
-                const r = await fetch(vmsUrl);
+                // Determine API base similar to fetchData
+                const vmsApiBase = window.location.port === '5002' ? '' : '/api/proxy';
+
+                const r = await fetch('/api/cameras');
+                if (!r.ok) throw new Error("API Error");
+
                 const cams = await r.json();
+
+                // ENRICH DATA (Fix missing IDs and inconsistent keys)
+                cams.forEach(c => {
+                    // 1. Generate Safe ID if missing (Normalização igual ao Python/Recorder)
+                    if (!c.id) {
+                        c.id = c.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "_")
+                            .replace(/_+/g, "_")
+                            .replace(/^_|_$/g, "");
+                    }
+                    // 2. Map crop_mode to crop (Frontend uses 'crop', API uses 'crop_mode')
+                    if (c.crop_mode !== undefined) {
+                        c.crop = c.crop_mode;
+                    }
+                });
+
+                allCameras = cams; // Store enriched list
 
                 const sel = document.getElementById('camSelector');
                 sel.innerHTML = '';
 
                 cams.forEach(c => {
-                    // We need the SAFE name for NVR
-                    // Frontend helper
-                    const safe = c.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
                     const opt = document.createElement('option');
-                    opt.value = safe;
-                    opt.innerText = c.name;
-                    if (safe === CAMERA) opt.selected = true;
+                    opt.value = c.id;
+                    opt.innerText = c.name + (c.crop ? " (Crop)" : "");
+                    // Check selection (CAMERA global var is derived from URL param 'camera')
+                    if (c.id === CAMERA) opt.selected = true;
                     sel.appendChild(opt);
                 });
             } catch (e) {
-                console.error("Failed to load camera list", e);
-                // Keep default or show nothing
+                console.error("Camera load error:", e);
+                hud.innerText = "Erro ao carregar câmeras.";
             }
         }
 
-        function changeCam(newVal) {
-            window.location.href = `?camera=${newVal}`;
+        // Init
+        loadCameras();
+
+        // Logic to switch camera respecting CROP config
+        function changeCam(val) {
+            console.log("Changing Cam to:", val);
+
+            // Check config for this camera
+            const camConfig = allCameras.find(c => c.id === val);
+            let hasCrop = false;
+
+            // "Modo de Exibição (corte)" usually mapped to 'crop' property in JSON
+            // Check both 'crop' (boolean/int) and 'crop_window' (string config) just in case
+            if (camConfig && (camConfig.crop || camConfig.crop_window)) {
+                hasCrop = true;
+                console.log(`Camera ${val} has crop/cut enabled.`);
+            }
+
+            // Construct URL
+            let newUrl = window.location.pathname + `?camera=${val}`;
+            if (hasCrop) {
+                newUrl += `&crop=1`;
+            }
+
+            window.location.href = newUrl;
         }
 
-        initCameras();
+        // Expose to Global Scope for HTML onchange
+        window.changeCam = changeCam;
 
 
         // State
@@ -1304,7 +1367,6 @@
             // 1. Update Text Display
             const tsEl = document.getElementById('timestamp-display');
             if (tsEl) {
-                // Format: DD/MM/YYYY HH:MM:SS
                 const day = String(centerDate.getDate()).padStart(2, '0');
                 const month = String(centerDate.getMonth() + 1).padStart(2, '0');
                 const year = centerDate.getFullYear();
@@ -1314,24 +1376,89 @@
                 tsEl.innerText = `${day}/${month}/${year} ${h}:${m}:${s}`;
             }
 
-            // 2. Sync Date Picker (Only if day changes to avoid heavy DOM updates)
-            const dateInput = document.getElementById('datePicker');
-            if (dateInput) {
-                // Using local time YYYY-MM-DD
-                const yyyy = centerDate.getFullYear();
-                const mm = String(centerDate.getMonth() + 1).padStart(2, '0');
-                const dd = String(centerDate.getDate()).padStart(2, '0');
-                const isoDate = `${yyyy}-${mm}-${dd}`;
-                if (dateInput.value !== isoDate) {
-                    dateInput.value = isoDate;
+            // 1.5 Sync Flatpickr (Custom Calendar)
+            if (typeof syncFlatpickr === 'function') {
+                try {
+                    syncFlatpickr(centerDate);
+                } catch (e) {
+                    // Ignore sync errors to prevent loop crash
                 }
             }
         }
 
-        // === DATE FILTER LOGIC ===
+        // === FLATPICKR INTEGRATION (Custom Calendar with Embedded GO Button) ===
+        // We initialize this once page loads or element is ready.
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fpInstance = flatpickr("#timestamp-display", {
+                enableTime: true,
+                dateFormat: "d/m/Y H:i:S",
+                time_24hr: true,
+                defaultDate: new Date(),
+                disableMobile: "true", // Force custom picker even on mobile to ensure GO button exists
+                onReady: function (selectedDates, dateStr, instance) {
+                    // Inject GO button into the calendar container
+                    const btnContainer = document.createElement("div");
+                    btnContainer.style.padding = "10px";
+                    btnContainer.style.textAlign = "center";
+                    btnContainer.style.borderTop = "1px solid #444";
+
+                    const btn = document.createElement("button");
+                    btn.innerText = "GO 🚀";
+                    btn.style.background = "#2e7d32";
+                    btn.style.color = "white";
+                    btn.style.border = "none";
+                    btn.style.padding = "5px 20px";
+                    btn.style.borderRadius = "4px";
+                    btn.style.cursor = "pointer";
+                    btn.style.fontWeight = "bold";
+
+                    btn.onclick = () => {
+                        if (instance.selectedDates.length > 0) {
+                            const isoStr = instance.selectedDates[0].toISOString();
+                            handleTimeJump(isoStr);
+                            instance.close();
+                        }
+                    };
+
+                    btnContainer.appendChild(btn);
+                    instance.calendarContainer.appendChild(btnContainer);
+                }
+            });
+        });
+
+        function handleTimeJump(isoVal) {
+            if (!isoVal) return;
+            const ts = new Date(isoVal).getTime() / 1000;
+            console.log("Jumping to Date/Time:", isoVal, ts);
+
+            // 1. Check if we need to reload data (Different Day?)
+            const currentDayStart = new Date(centerTime * 1000).setHours(0, 0, 0, 0) / 1000;
+            const newDayStart = new Date(ts * 1000).setHours(0, 0, 0, 0) / 1000;
+
+            if (currentDayStart !== newDayStart) {
+                // Determine Day Range
+                const startOfDay = newDayStart;
+                const endOfDay = startOfDay + 86400;
+
+                // Update Global Center (so seek works after load)
+                centerTime = ts;
+
+                // Fetch new data
+                fetchData(startOfDay, endOfDay).then(() => {
+                    // After load, seek to exact second
+                    seekTo(ts, true);
+                });
+            } else {
+                // Same day, just seek
+                seekTo(ts, true);
+            }
+        }
+
+        // === DATE FILTER LOGIC (Legacy - kept for reference if needed) ===
         // Set default date to today
         const dateInput = document.getElementById('datePicker');
-        dateInput.valueAsDate = new Date();
+        if (dateInput) dateInput.valueAsDate = new Date();
 
         function handleDateFilter() {
             // Reload data for the selected day (00:00 to 23:59)
@@ -2116,6 +2243,6 @@
         console.log("Applying AI Dual Image Patches...");
 
     </script>
-</body>
+    </body>
 
 </html>
