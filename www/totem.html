@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuração Totem</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            width: 85%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+        }
+
+        h2 {
+            color: #fff;
+            margin-bottom: 10px;
+            margin-top: 0;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 5px 0 20px 0;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1.2rem;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:active {
+            opacity: 0.8;
+        }
+
+        .btn-save {
+            background: #26a69a;
+            color: white;
+        }
+
+        .btn-reset {
+            background: #cf6679;
+            color: white;
+        }
+
+        .btn-back {
+            background: transparent;
+            border: 1px solid #555;
+            color: #aaa;
+            margin-top: 10px;
+        }
+
+        .status {
+            margin-bottom: 25px;
+            font-size: 1rem;
+            color: #888;
+            background: #252525;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .active {
+            color: #26a69a;
+            font-weight: bold;
+        }
+
+        .inactive {
+            color: #cf6679;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <h2>🔧 Modo Totem</h2>
+        <div id="status-display" class="status">Carregando status...</div>
+
+        <p style="font-size:0.9rem; color:#aaa; margin-bottom:15px; line-height: 1.4;">
+            Trava este dispositivo para acessar <strong>apenas</strong> o IP abaixo, ignorando internet ou outros
+            endereços.
+        </p>
+
+        <label style="display:block; text-align:center; color:#666; font-size:0.8rem; margin-bottom:5px;">IP DO SERVIDOR
+            LOCAL</label>
+        <input type="text" id="ip-input" placeholder="Ex: 192.168.0.15:5000" value="192.168.3.130:5000">
+
+        <button class="btn-save" onclick="saveIp()">🔒 SALVAR E TRAVAR</button>
+        <button class="btn-reset" onclick="resetIp()">🔓 DESTRAVAR (RESET)</button>
+        <button class="btn-back" onclick="window.location.href='dashboard.html'">Voltar ao Dashboard</button>
+    </div>
+
+    <script>
+        function updateStatus() {
+            const current = localStorage.getItem('vms_forced_local_ip');
+            const display = document.getElementById('status-display');
+            const input = document.getElementById('ip-input');
+
+            if (current) {
+                display.innerHTML = `STATUS: <span class="active">ATIVADO</span><br><small>${current}</small>`;
+                input.value = current;
+            } else {
+                display.innerHTML = `STATUS: <span class="inactive">DESATIVADO</span>`;
+                // Se já tem um valor inicial fixo (ex: do HTML), não sobrescreve com hostname vazio
+                if (!input.value) {
+                    input.value = window.location.hostname + (window.location.port ? ':' + window.location.port : '');
+                }
+            }
+        }
+
+        function saveIp() {
+            let rawIp = document.getElementById('ip-input').value.trim();
+            // Remove protocolo (http:// ou https://) se o usuário colou URL completa
+            rawIp = rawIp.replace(/^https?:\/\//, '');
+            // Remove barras finais (trailing slashes)
+            const ip = rawIp.replace(/\/+$/, '');
+            if (!ip) return alert('Digite um IP válido (Ex: 192.168.3.65:5000)');
+
+            if (confirm('ATENÇÃO: Isso travará o app neste IP.\nSe o IP mudar, você perderá acesso até resetar.\n\nConfirmar?')) {
+                localStorage.setItem('vms_forced_local_ip', ip);
+                alert('Modo Totem ATIVADO.');
+
+                // Redirect logic
+                // Se o IP digitado já tem porta (ex: contains :), usa direto. 
+                // Se não tem, adiciona a porta atual para manter compatibilidade.
+                var target = ip;
+                if (!target.includes(':') && window.location.port) {
+                    target += ':' + window.location.port;
+                }
+
+                window.location.href = 'http://' + target + '/dashboard.html';
+            }
+        }
+
+        function resetIp() {
+            localStorage.removeItem('vms_forced_local_ip');
+            alert('Modo Totem DESATIVADO. O App está livre.');
+            updateStatus();
+        }
+
+        // Init
+        updateStatus();
+    </script>
+</body>
+
+</html>

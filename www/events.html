@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Gerenciador de Eventos - OS BERBERTS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background-color: #121212;
+            color: #ddd;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1 {
+            color: white;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .card {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            color: #aaa;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        /* INPUTS & BUTTONS ALIGNMENT FIX */
+        input,
+        select {
+            width: 100%;
+            height: 42px;
+            /* Altura Fixa */
+            padding: 0 10px;
+            background: #2b2b2b;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .btn-emoji {
+            height: 42px;
+            /* Mesma altura do input */
+            width: 50px;
+            background: #333;
+            border: 1px solid #555;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+
+        .btn-emoji:hover {
+            background: #444;
+            border-color: #777;
+        }
+
+        button.btn-save {
+            margin-top: 20px;
+            height: 45px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        button.btn-save:hover {
+            background: #1976D2;
+        }
+
+        .btn-del {
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .btn-edit {
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        th {
+            color: #888;
+        }
+
+        .preview-icon {
+            font-size: 1.5rem;
+        }
+
+        /* MODAL EMOJI PICKER */
+        .emoji-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .emoji-modal {
+            background: #222;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            max-height: 85vh;
+        }
+
+        .emoji-scroll {
+            overflow-y: auto;
+            margin-top: 10px;
+            padding-right: 5px;
+            flex-grow: 1;
+        }
+
+        .emoji-category-title {
+            font-size: 0.85rem;
+            color: #888;
+            text-transform: uppercase;
+            margin: 15px 0 5px 0;
+            border-bottom: 1px solid #333;
+            padding-bottom: 2px;
+        }
+
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 5px;
+        }
+
+        .emoji-item {
+            font-size: 1.8rem;
+            cursor: pointer;
+            text-align: center;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background 0.1s;
+            user-select: none;
+        }
+
+        .emoji-item:hover {
+            background: #444;
+            transform: scale(1.1);
+        }
+
+        .close-picker {
+            float: right;
+            cursor: pointer;
+            font-size: 1.5rem;
+            margin-top: -10px;
+            color: #aaa;
+        }
+
+        .close-picker:hover {
+            color: #fff;
+        }
+
+        button.btn-test {
+            flex: 1;
+            height: 45px;
+            background: #9c27b0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button.btn-test:hover {
+            background: #7b1fa2;
+        }
+
+        button.btn-save {
+            flex: 2;
+            height: 45px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 0 !important;
+        }
+
+        button.btn-save:hover {
+            background: #1976D2;
+        }
+
+        /* Ajuste pro botão salvar ocupar mais espaço */
+
+        /* MODAL PREVIEW & CONFETTI */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes zoomIn {
+            from {
+                transform: scale(0);
+            }
+
+            to {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes pulseEmoji {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+        }
+
+        .big-emoji {
+            font-size: 8rem;
+            display: block;
+            text-align: center;
+            animation: pulseEmoji 1.5s infinite ease-in-out;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            opacity: 0.8;
+            animation: fall linear forwards;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h1>📅 Gestor de Datas Comemorativas</h1>
+            <div style="text-align:right">
+                <a href="users.html" style="color:#2196F3; text-decoration:none; margin-right:20px;">👥 Gestão
+                    Usuários</a>
+                <a href="dashboard.html" style="color:#2196F3; text-decoration:none;">⬅ Dashboard</a>
+            </div>
+        </div>
+
+        <!-- FORM -->
+        <div class="card">
+            <h3>Adicionar / Editar Evento</h3>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1">
+                    <label>Data (DD/MM)</label>
+                    <input type="text" id="dayKey" placeholder="Ex: 25/12" maxlength="5">
+                </div>
+                <div style="flex:1">
+                    <label>Intervalo (min)</label>
+                    <input type="number" id="interval" value="5">
+                </div>
+            </div>
+
+            <label>Título (Mensagem Principal)</label>
+            <input type="text" id="title" placeholder="Ex: Feliz Natal!">
+
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1">
+                    <label>Ícone Inicio</label>
+                    <div class="input-group">
+                        <input type="text" id="iconStart" placeholder="🎅">
+                        <button class="btn-emoji" onclick="openPicker('iconStart')">😀</button>
+                    </div>
+                </div>
+                <div style="flex:1">
+                    <label>Ícone Fim</label>
+                    <div class="input-group">
+                        <input type="text" id="iconEnd" placeholder="🎁">
+                        <button class="btn-emoji" onclick="openPicker('iconEnd')">😀</button>
+                    </div>
+                </div>
+            </div>
+
+            <label>Link do GIF / Imagem (Opcional - Se vazio usa Confetes)</label>
+            <div class="input-group">
+                <input type="text" id="mediaUrl" placeholder="https://...">
+                <button class="btn-emoji"
+                    style="width:auto; padding:0 15px; background:#673ab7; font-size:1rem; font-weight:bold; color:white;"
+                    onclick="openGiphyPicker()">GIPHY</button>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn-test" onclick="testEvent()">Testar ⚡</button>
+                <button class="btn-save" onclick="saveEvent()">Salvar Evento</button>
+            </div>
+        </div>
+
+        <!-- LIST -->
+        <div class="card">
+            <h3>Eventos Cadastrados</h3>
+            <table id="eventsTable">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Título</th>
+                        <th>Ícones</th>
+                        <th>Tipo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- JS fills this -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL PREVIEW -->
+    <div id="modal-preview" class="modal-overlay" onclick="closePreview()">
+        <div style="position:relative; max-width:90%; animation: zoomIn 0.5s;">
+            <span onclick="closePreview()"
+                style="position:absolute; top:-40px; right:0; font-size:2rem; color:white; cursor:pointer;">&times;</span>
+            <div id="preview-anim" class="big-emoji"></div>
+            <div id="preview-msg"
+                style="color:white; text-align:center; font-size:1.8rem; margin-top:20px; font-weight:bold; text-shadow:0 2px 4px black; font-family:sans-serif;">
+            </div>
+        </div>
+    </div>
+
+    <!-- GIPHY PICKER TOOL -->
+    <style>
+        .giphy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .giphy-item {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .giphy-item:hover {
+            transform: scale(1.05);
+            border: 2px solid #9c27b0;
+        }
+    </style>
+    <div class="emoji-overlay" id="giphyOverlay" onclick="closeGiphyPickerIO(event)">
+        <div class="emoji-modal" style="max-width:600px;">
+            <div style="margin-bottom:10px; display:flex; gap:10px;">
+                <input type="text" id="giphySearch" placeholder="🔍 Buscar GIF (Ex: natal)...">
+                <span class="close-picker" onclick="closeGiphyPicker()" style="margin:0; align-self:center;">×</span>
+            </div>
+            <button onclick="searchGiphy()"
+                style="width:100%; background:#673ab7; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-weight:bold;">BUSCAR
+                NO GIPHY</button>
+            <div class="emoji-scroll" id="giphyContainer"></div>
+        </div>
+    </div>
+
+    <!-- EMOJI PICKER TOOL -->
+    <div class="emoji-overlay" id="pickerOverlay" onclick="closePickerIO(event)">
+        <div class="emoji-modal">
+            <div style="margin-bottom:10px;">
+                <span class="close-picker" onclick="closePicker()">×</span>
+                <input type="text" id="emojiSearch" placeholder="🔍 Buscar (Ex: natal, amor)..."
+                    oninput="filterEmojis()" autofocus>
+            </div>
+            <div class="emoji-scroll" id="emojiContainer">
+                <!-- Grid is built here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api/events';
+
+        // --- GIPHY LOGIC ---
+        function openGiphyPicker() {
+            document.getElementById('giphyOverlay').style.display = 'flex';
+            document.getElementById('giphySearch').focus();
+            const input = document.getElementById('giphySearch');
+            input.onkeypress = function (event) {
+                if (event.key === "Enter") searchGiphy();
+            };
+        }
+        function closeGiphyPicker() {
+            document.getElementById('giphyOverlay').style.display = 'none';
+        }
+        function closeGiphyPickerIO(e) {
+            if (e.target.id === 'giphyOverlay') closeGiphyPicker();
+        }
+        let currentOffset = 0;
+        let currentQuery = '';
+
+        async function searchGiphy(isLoadMore = false) {
+            const input = document.getElementById('giphySearch');
+            const term = isLoadMore ? currentQuery : input.value;
+
+            if (term.length < 2) return;
+
+            if (!isLoadMore) {
+                currentQuery = term;
+                currentOffset = 0;
+            } else {
+                currentOffset += 24;
+            }
+
+            const container = document.getElementById('giphyContainer');
+            const loadBtn = document.getElementById('btnLoadMore');
+            if (loadBtn) loadBtn.remove();
+
+            if (!isLoadMore) {
+                container.innerHTML = '<div style="color:#888; text-align:center; padding:20px;">Carregando...</div>';
+            }
+
+            try {
+                const res = await fetch(`/api/giphy_search?q=${encodeURIComponent(term)}&offset=${currentOffset}`);
+                const data = await res.json();
+
+                if (!isLoadMore) container.innerHTML = '';
+
+                let grid;
+                if (!isLoadMore) {
+                    grid = document.createElement('div');
+                    grid.className = 'giphy-grid';
+                    container.appendChild(grid);
+                } else {
+                    grid = container.querySelector('.giphy-grid');
+                }
+
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(gif => {
+                        const img = document.createElement('img');
+                        const thumb = gif.images.fixed_height_small.url;
+                        const original = gif.images.original.url;
+
+                        img.src = thumb;
+                        img.className = 'giphy-item';
+                        img.onclick = () => selectGiphy(original);
+                        grid.appendChild(img);
+                    });
+
+                    if (data.data.length >= 24) {
+                        const btn = document.createElement('button');
+                        btn.id = 'btnLoadMore';
+                        btn.innerText = 'Carregar Mais ➕';
+                        btn.style = 'width:100%; margin-top:10px; padding:10px; background:#444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;';
+                        btn.onclick = () => searchGiphy(true);
+                        container.appendChild(btn);
+                    }
+                } else {
+                    if (!isLoadMore) container.innerHTML = '<div style="color:#888; text-align:center; padding:20px;">Nada encontrado (Verifique a API Key)</div>';
+                }
+            } catch (e) {
+                if (!isLoadMore) container.innerHTML = `<div style="color:red; text-align:center;">Erro na busca.<br>${e}</div>`;
+            }
+        }
+        function selectGiphy(url) {
+            document.getElementById('mediaUrl').value = url;
+            closeGiphyPicker();
+        }
+
+        // --- TEST & PREVIEW ---
+        let confettiInterval = null;
+
+        function closePreview() {
+            document.getElementById('modal-preview').style.display = 'none';
+            if (confettiInterval) clearInterval(confettiInterval);
+            document.querySelectorAll('.confetti').forEach(el => el.remove());
+        }
+
+        function createConfettiBatch() {
+            for (let i = 0; i < 15; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.zIndex = '9999';
+                c.style.left = Math.random() * 100 + 'vw';
+                const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722'];
+                c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                c.style.animationDuration = (Math.random() * 2 + 3) + 's';
+                c.style.top = '-10px';
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 5000);
+            }
+        }
+
+        function startConfettiLoop() {
+            createConfettiBatch();
+            if (confettiInterval) clearInterval(confettiInterval);
+            confettiInterval = setInterval(createConfettiBatch, 300);
+        }
+
+        function testEvent() {
+            const title = document.getElementById('title').value || "Título Teste";
+            const msg = `${document.getElementById('iconStart').value} ${title} ${document.getElementById('iconEnd').value}`;
+            const url = document.getElementById('mediaUrl').value;
+            const msgEl = document.getElementById('preview-msg');
+            const animEl = document.getElementById('preview-anim');
+
+            msgEl.innerText = msg;
+
+            if (url && url.length > 5) {
+                animEl.innerHTML = `<img src="${url}" style="width:100%; max-height:60vh; border-radius:15px; box-shadow:0 0 20px rgba(0,0,0,0.5)">`;
+                animEl.className = '';
+            } else {
+                animEl.className = 'big-emoji';
+                animEl.innerText = document.getElementById('iconStart').value || '🎉';
+            }
+
+            document.getElementById('modal-preview').style.display = 'flex';
+            startConfettiLoop();
+        }
+
+        // --- CATEGORIZED EMOJI LIST (>100 items) ---
+        const EMOJI_DATA = [
+            {
+                cat: "Festas & Datas",
+                items: [
+                    { c: '🎅', k: 'natal papai noel' }, { c: '🤶', k: 'natal mamae noel' }, { c: '🎄', k: 'natal arvore' },
+                    { c: '🎁', k: 'presente natal aniversario' }, { c: '🦌', k: 'natal rena' }, { c: '⛄', k: 'natal neve boneco' },
+                    { c: '❄️', k: 'neve frio' }, { c: '🎆', k: 'fogos ano novo' }, { c: '🎇', k: 'fogos' }, { c: '🧨', k: 'bombinha' },
+                    { c: '✨', k: 'brilho estrela magic' }, { c: '🎉', k: 'festa confete' }, { c: '🎊', k: 'festa confete' },
+                    { c: '🕯️', k: 'vela luz' }, { c: '🎈', k: 'balao aniversario' }, { c: '🎂', k: 'bolo aniversario' },
+                    { c: '🥂', k: 'brinde bebida' }, { c: '🍾', k: 'champagne' }, { c: '🎃', k: 'halloween abobora' },
+                    { c: '👻', k: 'fantasma' }, { c: '💀', k: 'caveira' }, { c: '🐰', k: 'coelho pascoa' }, { c: '🥚', k: 'ovo' },
+                    { c: '🍫', k: 'chocolate' }, { c: '🦃', k: 'peru ceia' }, { c: '🇧🇷', k: 'brasil bandeira' }
+                ]
+            },
+            {
+                cat: "Emoções & Carinhas",
+                items: [
+                    { c: '😀', k: 'feliz sorriso' }, { c: '😃', k: 'feliz' }, { c: '😄', k: 'feliz' }, { c: '😆', k: 'riso' },
+                    { c: '😅', k: 'suor riso' }, { c: '🤣', k: 'rolando rir' }, { c: '😂', k: 'chorando rir' }, { c: '🙂', k: 'sorriso' },
+                    { c: '😉', k: 'piscar' }, { c: '😊', k: 'fofo' }, { c: '😇', k: 'anjo' }, { c: '🥰', k: 'amor fofo' },
+                    { c: '😍', k: 'amor olhos' }, { c: '🤩', k: 'estrela olho' }, { c: '😘', k: 'beijo' }, { c: '😋', k: 'delicia' },
+                    { c: '😎', k: 'oculos sol' }, { c: '🥳', k: 'festa' }, { c: '😡', k: 'bravo' }, { c: '😢', k: 'triste' },
+                    { c: '😭', k: 'choro' }, { c: '😱', k: 'susto' }, { c: '🤔', k: 'pensando' }, { c: '😴', k: 'sono' },
+                    { c: '😷', k: 'mascara doente' }, { c: '👍', k: 'joinha like' }, { c: '👎', k: 'dislike' }, { c: '👏', k: 'palmas' },
+                    { c: '🙌', k: 'maos alto' }, { c: '🤝', k: 'aperto mao' }, { c: '🙏', k: 'rezar obrigado' }, { c: '💪', k: 'forca' }
+                ]
+            },
+            {
+                cat: "Natureza & Animais",
+                items: [
+                    { c: '🐶', k: 'cachorro pet' }, { c: '🐱', k: 'gato pet' }, { c: '🦁', k: 'leao' }, { c: '🐯', k: 'tigre' },
+                    { c: '🐴', k: 'cavalo' }, { c: '🦄', k: 'unicornio' }, { c: '🐮', k: 'vaca' }, { c: '🐷', k: 'porco' },
+                    { c: '🐵', k: 'macaco' }, { c: '🐔', k: 'galinha' }, { c: '🐣', k: 'pintinho' }, { c: '🦆', k: 'pato' },
+                    { c: '🦅', k: 'aguia' }, { c: '🦉', k: 'coruja' }, { c: '🐝', k: 'abelha' }, { c: '🦋', k: 'borboleta' },
+                    { c: '💐', k: 'buque flor' }, { c: '🌹', k: 'rosa flor' }, { c: '🌻', k: 'girassol' }, { c: '🌺', k: 'flor' },
+                    { c: '🌴', k: 'palmeira' }, { c: '🌵', k: 'cacto' }, { c: '🍀', k: 'trevo sorte' }, { c: '🍄', k: 'cogumelo' },
+                    { c: '🌞', k: 'sol' }, { c: '🌝', k: 'lua cheia' }, { c: '🌙', k: 'lua' }, { c: '⭐', k: 'estrela' },
+                    { c: '☁️', k: 'nuvem' }, { c: '⛈️', k: 'tempestade' }, { c: '🔥', k: 'fogo' }, { c: '💧', k: 'agua gota' }
+                ]
+            },
+            {
+                cat: "Comida & Bebida",
+                items: [
+                    { c: '🍏', k: 'maca' }, { c: '🍎', k: 'maca' }, { c: '🍐', k: 'pera' }, { c: '🍊', k: 'laranja' },
+                    { c: '🍋', k: 'limao' }, { c: '🍌', k: 'banana' }, { c: '🍉', k: 'melancia' }, { c: '🍇', k: 'uva' },
+                    { c: '🍓', k: 'morango' }, { c: '🍒', k: 'cereja' }, { c: '🍑', k: 'pessego' }, { c: '🍍', k: 'abacaxi' },
+                    { c: '🥥', k: 'coco' }, { c: '🥑', k: 'abacate' }, { c: '🍔', k: 'hamburger' }, { c: '🍟', k: 'batata' },
+                    { c: '🍕', k: 'pizza' }, { c: '🌭', k: 'cachorro quente' }, { c: '🍿', k: 'pipoca' }, { c: '🧂', k: 'sal' },
+                    { c: '🍩', k: 'donute' }, { c: '🍪', k: 'cookie' }, { c: '🎂', k: 'bolo' }, { c: '🧁', k: 'cupcake' },
+                    { c: '🍺', k: 'cerveja' }, { c: '🍻', k: 'brinde cerveja' }, { c: '🍷', k: 'vinho' }, { c: '☕', k: 'cafe' }
+                ]
+            },
+            {
+                cat: "Objetos & Símbolos",
+                items: [
+                    { c: '❤️', k: 'coracao amor' }, { c: '🧡', k: 'coracao' }, { c: '💛', k: 'coracao' }, { c: '💚', k: 'coracao' },
+                    { c: '💙', k: 'coracao' }, { c: '💜', k: 'coracao' }, { c: '💔', k: 'coracao partido' }, { c: '💯', k: 'cem' },
+                    { c: '✅', k: 'check ok' }, { c: '❌', k: 'x erro' }, { c: '🚫', k: 'proibido' }, { c: '⚠️', k: 'atencao' },
+                    { c: '⚽', k: 'futebol' }, { c: '🏀', k: 'basquete' }, { c: '🏈', k: 'bola' }, { c: '🎾', k: 'tenis' },
+                    { c: '🏆', k: 'trofeu' }, { c: '🥇', k: 'medalha' }, { c: '🚗', k: 'carro' }, { c: '✈️', k: 'aviao' },
+                    { c: '🚀', k: 'foguete' }, { c: '⏰', k: 'relogio' }, { c: '📅', k: 'calendario' }, { c: '🔔', k: 'sino' },
+                    { c: '🎵', k: 'musica' }, { c: '📷', k: 'camera' }, { c: '💡', k: 'luz ideia' }, { c: '💴', k: 'dinheiro' },
+                    { c: '💰', k: 'saco dinheiro' }, { c: '💎', k: 'diamante' }, { c: '🔑', k: 'chave' }, { c: '🔒', k: 'cadeado' }
+                ]
+            }
+        ];
+
+        let currentTargetInput = null;
+
+        function openPicker(inputId) {
+            currentTargetInput = inputId;
+            document.getElementById('pickerOverlay').style.display = 'flex';
+            document.getElementById('emojiSearch').value = '';
+            renderEmojis();
+            document.getElementById('emojiSearch').focus();
+        }
+
+        function closePicker() {
+            document.getElementById('pickerOverlay').style.display = 'none';
+        }
+
+        function closePickerIO(e) {
+            if (e.target.id === 'pickerOverlay') closePicker();
+        }
+
+        function renderEmojis(filterTerm = '') {
+            const container = document.getElementById('emojiContainer');
+            container.innerHTML = '';
+
+            const term = filterTerm.toLowerCase();
+
+            EMOJI_DATA.forEach(category => {
+                // Filtra itens
+                const items = category.items.filter(e =>
+                    !term || e.k.includes(term) || e.c.includes(term)
+                );
+
+                if (items.length > 0) {
+                    // Título Categoria
+                    const title = document.createElement('div');
+                    title.className = 'emoji-category-title';
+                    title.innerText = category.cat;
+                    container.appendChild(title);
+
+                    // Grid
+                    const grid = document.createElement('div');
+                    grid.className = 'emoji-grid';
+
+                    items.forEach(item => {
+                        const el = document.createElement('div');
+                        el.className = 'emoji-item';
+                        el.innerText = item.c;
+                        el.onclick = () => selectEmoji(item.c);
+                        grid.appendChild(el);
+                    });
+                    container.appendChild(grid);
+                }
+            });
+        }
+
+        function filterEmojis() {
+            const term = document.getElementById('emojiSearch').value;
+            renderEmojis(term);
+        }
+
+        function selectEmoji(char) {
+            if (currentTargetInput) {
+                document.getElementById(currentTargetInput).value = char;
+            }
+            closePicker();
+        }
+
+        // --- CRUD ---
+
+        async function loadEvents() {
+            const res = await fetch(API);
+            const data = await res.json();
+            const tbody = document.querySelector('#eventsTable tbody');
+            tbody.innerHTML = '';
+
+            data.forEach(evt => {
+                const tr = document.createElement('tr');
+
+                const hasGif = evt.media_url && evt.media_url.length > 5;
+                const typeLabel = hasGif ? 'GIF/Img' : 'Confetes 🎉';
+
+                tr.innerHTML = `
+                <td>${evt.day_key}</td>
+                <td>${evt.title}</td>
+                <td class="preview-icon">${evt.icon_start || ''} ... ${evt.icon_end || ''}</td>
+                <td><small>${typeLabel}</small><br><small>${evt.interval_min} min</small></td>
+                <td>
+                    <button class="btn-del" onclick="deleteEvent('${evt.day_key}')">Excluir</button>
+                    <button class="btn-edit" onclick="fillForm('${evt.day_key}', '${evt.title}', '${evt.media_url || ''}', ${evt.interval_min}, '${evt.icon_start || ''}', '${evt.icon_end || ''}')">Editar</button>
+                </td>
+            `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function saveEvent() {
+            const data = {
+                day_key: document.getElementById('dayKey').value,
+                title: document.getElementById('title').value,
+                media_url: document.getElementById('mediaUrl').value,
+                interval_min: parseInt(document.getElementById('interval').value),
+                icon_start: document.getElementById('iconStart').value,
+                icon_end: document.getElementById('iconEnd').value
+            };
+
+            if (!data.day_key || !data.title) return alert('Preencha Data e Título');
+
+            await fetch(API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            // Limpa form sem alertar reload
+            document.getElementById('dayKey').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('mediaUrl').value = '';
+            document.getElementById('iconStart').value = '';
+            document.getElementById('iconEnd').value = '';
+
+            loadEvents();
+            // Feedback visual
+            const btn = document.querySelector('.btn-save');
+            const originalText = btn.innerText;
+            btn.innerText = 'Salvo!';
+            btn.style.background = '#4caf50';
+            setTimeout(() => { btn.innerText = originalText; btn.style.background = '#2196F3'; }, 1500);
+        }
+
+        async function deleteEvent(key) {
+            if (!confirm('Excluir?')) return;
+            await fetch(API, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ day_key: key })
+            });
+            loadEvents();
+        }
+
+        function fillForm(key, title, url, interval, iStart, iEnd) {
+            document.getElementById('dayKey').value = key;
+            document.getElementById('title').value = title;
+            document.getElementById('mediaUrl').value = url;
+            document.getElementById('interval').value = interval;
+            document.getElementById('iconStart').value = iStart;
+            document.getElementById('iconEnd').value = iEnd;
+        }
+
+        loadEvents();
+    </script>
+
+</body>
+
+</html>

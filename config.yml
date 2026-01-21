@@ -1,0 +1,7 @@
+tunnel: 46943e11-e291-462b-b1cc-429acb06dd63
+credentials-file: 46943e11-e291-462b-b1cc-429acb06dd63.json
+
+ingress:
+  - hostname: cams.osberberts.com
+    service: http://localhost:5000
+  - service: http_status:404

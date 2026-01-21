@@ -1,0 +1,2902 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NVR Timeline Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #111;
+            color: #eee;
+            font-family: 'Segoe UI', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 5px 15px;
+            background: #222;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 40px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #4CAF50;
+        }
+
+        .viewport {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .controls {
+            height: auto;
+            min-height: 40px;
+            padding-bottom: 5px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .timeline-container {
+            height: 75px;
+            /* Fixed height instead of flex:1 */
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .time-labels {
+            height: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ccc;
+            background: #222;
+        }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .btn {
+            background: #333;
+            border: none;
+            color: white;
+            padding: 5px 15px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .btn:hover {
+            background: #444;
+        }
+
+        .btn-live {
+            background: #d32f2f;
+        }
+
+        /* HAMBURGER MENU STYLES */
+        .menu-btn {
+            background: none;
+            border: none;
+            color: #eee;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            margin-right: 10px;
+        }
+
+        /* Dropdown Content (Hidden by Default) */
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 45px;
+            /* Abaixo do header */
+            left: 10px;
+            background-color: #252525;
+            min-width: 200px;
+            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            /* High Z-index */
+            border-radius: 4px;
+            border: 1px solid #444;
+        }
+
+        /* Links inside the dropdown */
+        .dropdown-content a,
+        .dropdown-content div {
+            color: #eee;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            cursor: pointer;
+            border-bottom: 1px solid #333;
+        }
+
+        .dropdown-content a:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-content a:hover,
+        .dropdown-content div:hover {
+            background-color: #444;
+        }
+
+        /* Show the dropdown menu */
+        .show {
+            display: block;
+        }
+
+        /* Mobile & Responsive Fixes */
+        /* Body padding reset as we removed fixed sidebar */
+        body {
+            padding-left: 0;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                height: auto;
+                flex-wrap: wrap;
+                padding: 10px;
+                gap: 8px;
+                justify-content: center;
+            }
+
+            .header h1 {
+                display: none;
+                /* Hide title on mobile to save space */
+            }
+
+            /* Container dos botoes de acao (direita) */
+            .header>div {
+                width: 100%;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                gap: 5px;
+            }
+
+            /* Date Picker e Selector ocupam largura total ou dividida */
+            #datePicker,
+            #camSelector {
+                flex: 1;
+                min-width: 120px;
+                height: 35px;
+                /* Touch target */
+            }
+
+            /* Ajustes nos botões Header */
+            .header .btn {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+
+            /* Controls Area */
+            .controls {
+                height: auto;
+                min-height: 110px;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .time-labels {
+                height: auto;
+                flex-direction: column;
+                padding: 5px;
+                gap: 5px;
+                background: #1a1a1a;
+            }
+
+            #zoom-controls {
+                width: 100%;
+                justify-content: space-between;
+                font-size: 0.9rem;
+            }
+
+            #zoomSlider {
+                flex: 1;
+                /* Slider estica */
+                max-width: 150px;
+                margin: 0 10px;
+            }
+
+            /* Timestamp em nova linha, centralizado e bonito */
+            #timestamp-display {
+                display: block;
+                width: 100%;
+                margin: 5px 0 0 0 !important;
+                box-sizing: border-box;
+                font-size: 1rem !important;
+            }
+
+            /* Magic Button menos intrusivo */
+            #btnMagicAction {
+                bottom: 10px;
+                right: 10px;
+                padding: 8px 12px !important;
+                font-size: 0.85rem !important;
+                border-radius: 25px !important;
+                opacity: 0.9;
+            }
+        }
+    </style>
+    <style>
+        :root {
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --drawer: #252525;
+            --text: #e0e0e0;
+            --accent: #26a69a;
+            --danger: #cf6679;
+            --header-h: 60px;
+            --drawer-w: 280px;
+        }
+
+        /* --- DRAWER --- */
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 15000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .drawer-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .drawer {
+            position: fixed;
+            top: 0;
+            left: calc(-1 * var(--drawer-w));
+            width: var(--drawer-w);
+            height: 100%;
+            background: var(--drawer);
+            z-index: 16000;
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .drawer.open {
+            transform: translateX(var(--drawer-w));
+        }
+
+        .drawer-header {
+            height: 140px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: #444;
+            color: #aaa;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .drawer-content {
+            flex: 1;
+            padding: 10px 0;
+            overflow-y: auto;
+        }
+
+        .menu-item {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            color: #ccc;
+            text-decoration: none;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+        }
+
+        .menu-item.active {
+            background: rgba(38, 166, 154, 0.1);
+            border-left-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .menu-icon {
+            margin-right: 15px;
+            width: 20px;
+            text-align: center;
+            opacity: 0.7;
+        }
+    </style>
+    <!-- Flatpickr (Custom Calendar with Dark Theme) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <!-- DRAWER COMPONENT -->
+    <div class="drawer-overlay" id="overlay" onclick="toggleDrawer()"></div>
+    <div class="drawer" id="drawer">
+        <div class="drawer-header">
+            <div class="user-avatar">👤</div>
+            <div style="font-weight:600; color:#fff" id="user-display">Gustavo</div>
+            <div style="font-size:0.8rem; opacity:0.5">Gestão de Vídeo</div>
+        </div>
+        <div class="drawer-content">
+            <a href="dashboard.html" class="menu-item" onclick="toggleDrawer()">
+                <span class="menu-icon">📷</span> Monitoramento
+            </a>
+
+            <a href="#" class="menu-item active" onclick="toggleDrawer()">
+                <span class="menu-icon">📼</span> NVR (Timeline)
+            </a>
+
+            <a href="nvr_settings.html" class="menu-item" onclick="toggleDrawer()">
+                <span class="menu-icon">⚙️</span> Configuração NVR (Admin)
+            </a>
+
+            <div class="menu-item" onclick="toggleFullscreen(); toggleDrawer();">
+                <span class="menu-icon">⛶</span> Tela Expandida
+            </div>
+
+            <div class="menu-item" onclick="location.reload()">
+                <span class="menu-icon">🔄</span> Recarregar Página
+            </div>
+
+            <hr style="border:0; border-top:1px solid #333; margin:10px 0">
+
+            <div class="menu-item" onclick="alert('Trocar Senha (Demo)')">
+                <span class="menu-icon">🔒</span> Trocar Senha
+            </div>
+
+            <div class="menu-item" onclick="window.location.href='index.html'">
+                <span class="menu-icon">🚪</span> Sair
+            </div>
+            <div id="app-version-display"
+                style="padding: 1rem; border-top: 1px solid #333; font-size: 0.8rem; color: #666; text-align: center;">
+                v1.0.18
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT START -->
+    <!-- HEADER REPLICATED FROM DASHBOARD -->
+    <div class="header"
+        style="justify-content: flex-start; padding: 0 15px; background: #1e1e1e; height: 60px; border-bottom: 1px solid #333; display: flex; align-items: center; flex-wrap: nowrap;">
+
+        <!-- 1. Hamburger Button (Left) -->
+        <button onclick="toggleDrawer()" class="menu-btn"
+            style="color:#aaa; font-size:24px; background:none; border:none; padding:5px; margin-right:10px; cursor:pointer; flex-shrink: 0;">☰</button>
+
+        <!-- 2. Clock (Next to Menu) -->
+        <div id="app-clock" style="font-size:1.1rem; color:#fff; font-weight:500; white-space:nowrap; flex-shrink: 0;">
+            --/--/---- --:--:--
+        </div>
+
+        <!-- 3. Branding (Right Aligned) -->
+        <div class="app-title"
+            style="font-size:1.35rem; font-weight:500; letter-spacing:1px; margin-left: auto; white-space: nowrap; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis;">
+            <span style="color:#fff">OS</span>
+            <span style="color:#29b6f6">BERBERT</span><span style="color:#ff4081">S</span>
+        </div>
+    </div>
+
+    <!-- SUB-HEADER COMPONENTS (Cam Selector & Controls) -->
+    <div class="sub-header"
+        style="padding: 10px; background: #111; border-bottom: 1px solid #333; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
+
+        <!-- Cameras Selector -->
+        <div style="flex: 1; min-width: 200px; display:flex; gap:10px;">
+            <select id="camSelector" class="selector"
+                style="flex:1; padding:8px; background:#222; color:white; border:1px solid #444; border-radius:4px;"
+                onchange="changeCam(this.value)">
+                <option value="" disabled selected>Carregando câmeras...</option>
+            </select>
+        </div>
+
+        <!-- Right Controls REMOVED (Date & Buttons Moved) -->
+    </div>
+
+    <div class="viewport" style="position:relative; overflow:hidden;">
+        <video id="player" controls autoplay style="width:100%; height:100%; object-fit:contain;"></video>
+
+        <!-- FLOATING BUTTONS (TOP RIGHT) -->
+        <div style="position: absolute; top: 10px; right: 60px; z-index: 10; display: flex; gap: 8px;">
+            <button class="btn" onclick="openMagicLens()" style="
+                background: linear-gradient(135deg, #6200ea, #b388ff);
+                border: 1px solid rgba(255,255,255,0.2);
+                font-weight: bold;
+                box-shadow: 0 0 10px rgba(98, 0, 234, 0.5);
+            ">✨ AI</button>
+            <button class="btn" onclick="goLive()"
+                style="background: rgba(211, 47, 47, 0.8); backdrop-filter: blur(2px); border: 1px solid rgba(255,255,255,0.2);">Ao
+                Vivo</button>
+            <button class="btn" onclick="shareVideo()" title="Compartilhar"
+                style="background: rgba(85, 85, 85, 0.8); backdrop-filter: blur(2px); border: 1px solid rgba(255,255,255,0.2);">🔗</button>
+        </div>
+
+        <button id="btn-play-overlay"
+            style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:3rem; background:none; border:none; color:white; opacity:0.8; cursor:pointer; display:none;">
+            ▶
+        </button>
+        <div id="hud">Aguardando dados...</div>
+
+        <!-- MOBILE VIDEO ZOOM SLIDER -->
+        <input type="range" id="vZoomSlider" min="10" max="100" value="10" orient="vertical" style="
+                position: absolute;
+                right: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                height: 50%; /* Metade da altura da tela */
+                width: 40px; /* Area de toque maior */
+                z-index: 20;
+                opacity: 0.8;
+                display: none; /* CSS vai ativar no mobile */
+                appearance: slider-vertical; /* Chrome/Safari */
+                accent-color: #2e7d32;
+            " oninput="handleVZoom(this.value)">
+        <style>
+            @media (max-width: 768px) {
+                #vZoomSlider {
+                    display: block !important;
+                }
+            }
+        </style>
+
+        <!-- SNIPER OVERLAY (HIDDEN BY DEFAULT) -->
+        <div id="sniperOverlay" style="
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,20,0,0.3);
+            z-index: 5;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none; /* Let clicks pass through to Pan/Zoom */
+        ">
+            <!-- TARGET BOX -->
+            <div id="targetBox" style="
+                width: 250px;
+                height: 250px;
+                border: 2px solid #ff1744;
+                box-shadow: 0 0 15px #ff1744, inset 0 0 10px #ff1744;
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">
+                <!-- CROSSHAIR -->
+                <div style="position:absolute; width:100%; height:1px; background:rgba(255,23,68,0.5);"></div>
+                <div style="position:absolute; height:100%; width:1px; background:rgba(255,23,68,0.5);"></div>
+
+                <!-- CORNERS -->
+                <div
+                    style="position:absolute; top:-2px; left:-2px; width:20px; height:20px; border-top:4px solid #ff1744; border-left:4px solid #ff1744;">
+                </div>
+                <div
+                    style="position:absolute; top:-2px; right:-2px; width:20px; height:20px; border-top:4px solid #ff1744; border-right:4px solid #ff1744;">
+                </div>
+                <div
+                    style="position:absolute; bottom:-2px; left:-2px; width:20px; height:20px; border-bottom:4px solid #ff1744; border-left:4px solid #ff1744;">
+                </div>
+                <div
+                    style="position:absolute; bottom:-2px; right:-2px; width:20px; height:20px; border-bottom:4px solid #ff1744; border-right:4px solid #ff1744;">
+                </div>
+
+                <div
+                    style="margin-top:-180px; color:#ff1744; font-weight:bold; font-family:monospace; background:rgba(0,0,0,0.8); padding:2px 5px;">
+                    TARGET LOCKED</div>
+            </div>
+
+            <div
+                style="position:absolute; bottom:80px; color:white; text-align:center; text-shadow:0 1px 3px black; font-family:monospace;">
+                Posicione o alvo dentro do quadrado<br>usando Zoom e Pan
+            </div>
+        </div>
+
+
+
+        <!-- MAGIC LENS BUTTON (REMOVED from Floating Bottom-Right as requested) -->
+        <button id="btnMagicAction" onclick="openMagicLens()" style="display:none;"></button>
+    </div>
+
+    <!-- ENHANCE MODAL -->
+    <div id="enhanceModal" style="
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.95);
+        z-index: 1000;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    ">
+        <h2
+            style="color:#b388ff; font-family:'Courier New', monospace; text-transform:uppercase; letter-spacing:2px; margin-bottom:10px;">
+            AI ENHANCEMENT PROTOCOL
+        </h2>
+
+        <!-- WRAPPER for Adaptive Width -->
+        <div id="aiDisplayWrapper"
+            style="display:flex; flex-direction:column; align-items:stretch; width:fit-content; max-width:95vw;">
+            <!-- TABS -->
+            <div style="display:flex; gap:0; margin-bottom:0; width:100%; z-index:1001;">
+                <button id="tabTarget" class="tab-btn active" onclick="switchTab('target')">ORIGINAL</button>
+                <button id="tabEnhanced" class="tab-btn" onclick="switchTab('enhanced')" disabled>MELHORADA</button>
+                <button id="tabContext" class="tab-btn" onclick="switchTab('context')">CONTEXTO</button>
+            </div>
+            <style>
+                .tab-btn {
+                    flex: 1;
+                    padding: 10px;
+                    background: #1a1a1a;
+                    border: 1px solid #444;
+                    border-bottom: none;
+                    color: #888;
+                    cursor: pointer;
+                    font-family: 'Segoe UI', sans-serif;
+                    font-size: 0.9rem;
+                    transition: all 0.2s;
+                    white-space: nowrap;
+                }
+
+                .tab-btn.active {
+                    background: #000;
+                    color: #fff;
+                    border-color: #b388ff;
+                    border-bottom: 2px solid #000;
+                    margin-bottom: -2px;
+                    z-index: 10;
+                    font-weight: bold;
+                }
+
+                .tab-btn:disabled {
+                    opacity: 0.3;
+                    cursor: not-allowed;
+                }
+
+                .tab-btn:hover:not(:disabled) {
+                    background: #2a2a2a;
+                }
+            </style>
+
+            <div
+                style="position:relative; width:auto; height:65vh; border:1px solid #444; border-top:2px solid #b388ff; background:#000; display:flex; justify-content:center;">
+                <img id="enhancePreview" style="
+                width: auto;
+                height: 100%;
+                object-fit: contain;
+                display: block;
+                filter: brightness(0.8) sepia(1) hue-rotate(240deg); /* Sci-fi Blue Tint initially */
+                transition: filter 2s ease;
+                min-width: 320px; /* Force minimum width */
+            ">
+
+                <!-- SCAN LINE EFFECT -->
+                <div id="scanLine" style="
+                position: absolute;
+                top: 0; left: 0; right: 0;
+                height: 5px;
+                background: cyan;
+                box-shadow: 0 0 10px cyan;
+                opacity: 0;
+                pointer-events: none;
+            "></div>
+
+                <div id="enhanceLoading" style="
+                position: absolute;
+                top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
+                color: cyan;
+                font-family: 'Courier New', monospace;
+                font-size: 1.5rem;
+                display: none;
+                text-align: center;
+            ">
+                    ANALYZING PIXELS...
+                    <br>
+                </div>
+
+                <!-- TOP RIGHT CONTROLS: SHARE + PERCENT -->
+                <div
+                    style="position:absolute; top:10px; right:10px; display:flex; gap:5px; z-index:25; align-items:center;">
+                    <button id="btnShareAI" onclick="shareEnhanced()" title="Compartilhar" style="
+                        display:none;
+                        background: rgba(0,0,0,0.6);
+                        border: 1px solid #00c853;
+                        color: #00c853;
+                        font-family: 'Segoe UI', sans-serif;
+                        font-weight: bold;
+                        padding: 4px 10px;
+                        cursor: pointer;
+                        font-size: 1rem;
+                    ">📤</button>
+
+                    <div
+                        style="background:rgba(0,0,0,0.7); color:#00e5ff; font-family:monospace; padding:4px 8px; font-weight:bold; border:1px solid #00e5ff;">
+                        <span id="loadingPercent">0%</span>
+                    </div>
+                </div>
+
+                <!-- OVERLAY BUTTON: PROCESS / RE-RUN -->
+                <button id="btnProcessAI" onclick="processAI()" style="
+                    position: absolute;
+                    bottom: 40px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 90%;
+                    background: linear-gradient(90deg, #6200ea, #00e5ff);
+                    color: white;
+                    font-weight: bold;
+                    padding: 8px 0;
+                    border: 1px solid rgba(255,255,255,0.3);
+                    text-transform: uppercase;
+                    cursor: pointer;
+                    z-index: 20;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+                    font-family: 'Segoe UI', sans-serif;
+                    letter-spacing: 1px;
+                ">EXECUTAR MELHORIA COM IA</button>
+
+            </div>
+        </div>
+
+        <div style="margin-top:20px; display:flex; gap:15px; justify-content: center; width: 100%;">
+            <button class="btn" onclick="closeMagicLens()" style="background:#444; width: 200px;">FECHAR</button>
+        </div>
+    </div>
+
+    <style>
+        html,
+        body {
+            overflow-x: hidden;
+            width: 100vw;
+        }
+
+        /* Mobile Specific Overrides applied mainly via media query */
+        @media (max-width: 768px) {
+            .header {
+                position: relative !important;
+            }
+
+            .app-title {
+                position: absolute !important;
+                right: 10px !important;
+                top: 50% !important;
+                transform: translateY(-50%) !important;
+
+                font-size: 0.75rem !important;
+                /* Small like dashboard */
+                display: block !important;
+                visibility: visible !important;
+                width: auto !important;
+                margin: 0 !important;
+                text-align: right;
+                z-index: 5;
+            }
+
+            #app-clock {
+                font-size: 0.75rem !important;
+                /* Small like dashboard */
+                margin-left: 5px !important;
+                /* No margin-right auto needed anymore since Title is absolute */
+                text-align: left;
+                font-weight: bold;
+                flex-grow: 0 !important;
+                white-space: nowrap !important;
+            }
+
+            /* FIX: Make sure Clock is strictly after menu and Title is strictly right */
+            /* Actually, the HTML order is Menu -> Clock -> Title.
+               If we want Title on Right, Title needs margin-left: auto.
+               If Title dissapeared, it might be overflow. Let's fix. */
+
+            .menu-btn {
+                font-size: 20px !important;
+                margin-right: 5px !important;
+            }
+
+            /* Remove blank space in controls */
+            .controls {
+                min-height: auto !important;
+                /* Remove min-height */
+                padding-bottom: 0 !important;
+            }
+
+            /* TIMELINE HEIGHT INCREASE (USER REQUEST 1/3 MORE) */
+            .timeline-container {
+                height: 120px !important;
+                /* Increased from ~75px default */
+            }
+
+            .time-labels {
+                flex-direction: row !important;
+                /* Side by side on mobile */
+                gap: 0 !important;
+                padding: 5px 10px !important;
+            }
+
+            #zoom-controls {
+                width: auto !important;
+                /* Auto width */
+                justify-content: flex-end;
+                /* Align right or left */
+                order: 2;
+                /* Zoom on right */
+            }
+
+            #timestamp-display {
+                margin: 0 !important;
+                display: inline-block !important;
+                width: auto !important;
+                font-size: 0.9rem !important;
+                min-width: 130px !important;
+                order: 1;
+                /* Date on left */
+            }
+
+            #zoomSlider {
+                width: 100px !important;
+                /* Smaller slider */
+                margin: 0 !important;
+            }
+
+            /* TOTEM MODE (Dashboard/NVR Kiosk) */
+            body.totem-mode .timeline-container {
+                height: 480px !important;
+                /* Double again (240 -> 480) */
+            }
+
+            /* Adjust Zoom Slider in Totem Mode if needed? Maybe not. */
+        }
+
+        /* Mobile Landscape: Increase Timeline Height by 1/7 (120px * 1.14 ≈ 137px) */
+        /* Target phones/small devices in landscape */
+        @media (max-height: 600px) and (orientation: landscape) {
+            .timeline-container {
+                height: 137px !important;
+            }
+        }
+    </style>
+    <script>
+        // Auto-detect Totem Mode from URL
+        if (new URLSearchParams(window.location.search).has('totem') || window.location.hash.includes('totem')) {
+            document.body.classList.add('totem-mode');
+        }
+    </script>
+
+    <div class="controls">
+        <div class="time-labels" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+
+            <!-- Date Left -->
+            <div style="position:relative; display:inline-block;">
+                <span id="timestamp-display" style="
+                    font-family:'Consolas', monospace; 
+                    font-size:1.1rem; 
+                    color:#4CAF50; 
+                    border:1px solid #444; 
+                    padding:2px 8px; 
+                    background:#000;
+                    min-width: 160px;
+                    text-align:center;
+                    cursor: pointer;
+                    user-select: none;
+                " title="Clique para alterar Data/Hora">--/--/---- --:--:--</span>
+            </div>
+
+            <!-- Slider Right (No Text) -->
+            <div id="zoom-controls" style="display:flex; align-items:center;">
+                <input type="range" id="zoomSlider" min="60" max="14400" step="60" value="1800"
+                    oninput="updateZoom(this.value)" style="width:150px; cursor:pointer;">
+            </div>
+        </div>
+        <!-- Labels ocultos conforme pedido anterior -->
+        <span id="lbl-start" style="display:none"></span>
+        <span id="lbl-center" style="display:none"></span>
+        <span id="lbl-end" style="display:none"></span>
+    </div>
+    <div class="timeline-container" id="timeline-box">
+        <canvas id="timeline"></canvas>
+        <div id="cursor"
+            style="position:absolute; top:0; bottom:0; width:1px; background:white; left:50%; pointer-events:none;">
+        </div>
+    </div>
+    </div>
+
+    <script>
+        // Config
+        // API_URL moved to Global Config below
+        const urlParams = new URLSearchParams(window.location.search);
+        let CAMERA = urlParams.get('camera') || 'piscina';
+        let CROP = parseInt(urlParams.get('crop')) || 0;
+
+        // Update Title immediately
+        const safeCamName = (CAMERA && CAMERA !== 'undefined') ? CAMERA : 'Camera';
+        document.title = "NVR - " + safeCamName;
+        // document.getElementById('page-title').innerText = ... (Removed as element is gone)
+
+        // FIXED: Variáveis globais faltantes
+        let lastPlayTime = 0;
+        let freezeCounter = 0;
+
+        // Zoom Logic (Timeline)
+        function updateZoom(val) {
+            setZoom(parseInt(val));
+        }
+
+        // --- DIGITAL ZOOM (PINCH / WHEEL) ---
+        let dZoom = 1.0;
+        let dTransX = 0, dTransY = 0;
+        let isPinching = false;
+        let startDist = 0;
+        let startPinchCenter = { x: 0, y: 0 };
+        let startZoomState = { scale: 1, x: 0, y: 0 };
+
+        const vidContainer = document.querySelector('.viewport');
+        const vEl = document.getElementById('player');
+
+        // Mouse Wheel Zoom
+        vidContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = -Math.sign(e.deltaY) * 0.1;
+            // Wheel zooms to center, or we could try to zoom to cursor if we had consistent coords
+            applyDigitalZoom(dZoom + delta, dTransX, dTransY);
+        });
+
+        // --- PANNING VARIABLES ---
+        let isPanning = false;
+        let startPanX = 0, startPanY = 0;
+        let startTransX = 0, startTransY = 0;
+
+        // Touch Logic (Combined Zoom & Pan)
+        vidContainer.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                // PINCH START
+                isPinching = true;
+                isPanning = false; // Disable pan if pinching
+                startDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                startZoomState = { scale: dZoom, x: dTransX, y: dTransY };
+            } else if (e.touches.length === 1 && dZoom > 1.0) {
+                // PAN START (Only if zoomed in)
+                isPanning = true;
+                isPinching = false;
+                startPanX = e.touches[0].clientX;
+                startPanY = e.touches[0].clientY;
+                startTransX = dTransX;
+                startTransY = dTransY;
+            }
+        }, { passive: false });
+
+        vidContainer.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Prevent scrolling
+
+            if (isPinching && e.touches.length === 2) {
+                // PINCH MOVE
+                const newDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const scaleFactor = newDist / startDist;
+                const newScale = startZoomState.scale * scaleFactor;
+                applyDigitalZoom(newScale, dTransX, dTransY);
+            } else if (isPanning && e.touches.length === 1) {
+                // PAN MOVE
+                const dx = e.touches[0].clientX - startPanX;
+                const dy = e.touches[0].clientY - startPanY;
+                applyDigitalZoom(dZoom, startTransX + dx, startTransY + dy);
+            }
+        }, { passive: false });
+
+        vidContainer.addEventListener('touchend', (e) => {
+            // Reset flags if no fingers left
+            if (e.touches.length === 0) {
+                isPinching = false;
+                isPanning = false;
+            }
+        });
+
+        // Double Tap / Double Click to Reset
+        let lastTap = 0;
+        vidContainer.addEventListener('touchend', (e) => {
+            if (e.pointerType === 'mouse') return; // Handled by dblclick
+            const now = Date.now();
+            if (now - lastTap < 300) {
+                applyDigitalZoom(1.0, 0, 0); // Reset
+            }
+            lastTap = now;
+        });
+
+        // Mouse Panning (Optional support for Desktop Dragging)
+        let isMousePanning = false;
+        vidContainer.addEventListener('mousedown', (e) => {
+            if (dZoom > 1.0) {
+                e.preventDefault(); // Prevent default drag behavior
+                isMousePanning = true;
+                startPanX = e.clientX;
+                startPanY = e.clientY;
+                startTransX = dTransX;
+                startTransY = dTransY;
+                vidContainer.style.cursor = 'grab';
+            }
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!isMousePanning) return;
+            const dx = e.clientX - startPanX;
+            const dy = e.clientY - startPanY;
+            applyDigitalZoom(dZoom, startTransX + dx, startTransY + dy);
+        });
+        window.addEventListener('mouseup', () => {
+            isMousePanning = false;
+            vidContainer.style.cursor = 'default';
+        });
+
+        // Vertical Slider Handler
+        function handleVZoom(val) {
+            const scale = parseInt(val) / 10;
+            applyDigitalZoom(scale, dTransX, dTransY);
+        }
+
+        function applyDigitalZoom(scale, x, y) {
+            // Limits
+            if (scale < 1) scale = 1;
+            if (scale > 10) scale = 10; // Max 10x (User Request)
+
+            dZoom = scale;
+
+            // Pan Limits (Keep image within view roughly)
+            // If scale is 1, x/y must be 0.
+            if (dZoom === 1) {
+                dTransX = 0;
+                dTransY = 0;
+            } else {
+                // If Zoomed, allow Panning.
+                // Simple limit: Don't let user pan image completely off screen.
+                // Let's rely on visual feedback for now, unbounded but user can pull back.
+                // Or implementing a box constraint based on container size is better UX but complex.
+                // For now, free pan (Photoshop style) is acceptable.
+                dTransX = x;
+                dTransY = y;
+            }
+
+            // Sync Vertical Slider (if exists)
+            const vSlider = document.getElementById('vZoomSlider');
+            if (vSlider) {
+                vSlider.value = dZoom * 10;
+            }
+
+            // Apply Transform
+            vEl.style.transform = `scale(${dZoom}) translate(${dTransX / dZoom}px, ${dTransY / dZoom}px)`;
+            // Note on Translate:
+            // CSS transform order: translate is applied AFTER scale if listed after, or we need to adjust logic.
+            // transform: scale(2) translate(50px, 0) -> Scales up, then moves 50px ISOLATED coordinates?
+            // Actually: transform: translate(X, Y) scale(Z) is usually safer for Pan/Zoom logic.
+
+            // REFINED TRANSFORM LOGIC:
+            // We want 'translate' to move the image visually in pixels.
+            // If we use `matrix()`, it's precise.
+            // Simple approach: `translate(${x}px, ${y}px) scale(${scale})`
+            // This means we translate first, then scale. 
+            // If we move 10px right, then scale 2x, visually it moves 20px? 
+            // Let's stick to `translate(x, y) scale(z)` and adjust input X/Y to match screen pixels.
+
+            vEl.style.transform = `translate(${dTransX}px, ${dTransY}px) scale(${dZoom})`;
+
+            // Show Feedback
+            if (dZoom > 1.05) hud.innerText = `Zoom: ${dZoom.toFixed(1)}x`;
+            else hud.innerText = "";
+        }
+
+        // --- SHARE FEATURE ---
+        async function shareVideo() {
+            if (!video.src) return alert("Nenhum vídeo carregado.");
+
+            const shareData = {
+                title: 'Vídeo NVR - ' + CAMERA,
+                text: `Vídeo da câmera ${CAMERA} em ${new Date(centerTime * 1000).toLocaleString()}`,
+                url: video.src // This URL might be local-only
+            };
+
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                } else {
+                    // Fallback: Clipboard
+                    await navigator.clipboard.writeText(video.src);
+                    alert("Link do vídeo copiado para a área de transferência!");
+                }
+            } catch (e) {
+                console.error("Share error:", e);
+                // alert("Erro ao compartilhar: " + e);
+            }
+        }
+
+        // --- MAGIC LENS (AI ENHANCE - SNIPER MODE) ---
+        let capturedBlob = null;
+        let enhancedBlob = null;
+
+        // 1. Toggle Sniper Mode
+        function openMagicLens() {
+            const overlay = document.getElementById('sniperOverlay');
+            const btn = document.getElementById('btnMagicAction');
+
+            if (overlay.style.display === 'flex') {
+                // V13: Pure Math + Split Camera Support (The "Success Absolute" version)
+                captureSniperTargetV13();
+            } else {
+                // Enter Sniper Mode
+                overlay.style.display = 'flex';
+                btn.innerHTML = '📸 CAPTURAR ALVO';
+                btn.style.background = 'linear-gradient(135deg, #d50000, #ff1744)';
+            }
+        }
+
+        // POC: Simple Full Screen Print Test
+        async function runPocPrint() {
+            try {
+                // 1. Get Stream with explicit self-capture permission
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { preferCurrentTab: true },
+                    audio: false,
+                    selfBrowserSurface: 'include',
+                    systemAudio: 'exclude'
+                });
+
+                // 2. Video Element (Wait for it to actually play)
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.srcObject = stream;
+
+                await new Promise(r => video.onloadedmetadata = r);
+                await video.play();
+                await new Promise(r => setTimeout(r, 500)); // Buffer
+
+                // 3. Capture Full Screen to Canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+
+                // 4. Show Result (Raw Overlay)
+                const imgData = canvas.toDataURL('image/png');
+
+                const overlay = document.createElement('div');
+                Object.assign(overlay.style, {
+                    position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+                    zIndex: '100000', background: 'rgba(0,0,0,0.95)',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center'
+                });
+
+                const img = document.createElement('img');
+                img.src = imgData;
+                Object.assign(img.style, {
+                    maxWidth: '90%', maxHeight: '80%', border: '2px solid white', marginBottom: '20px'
+                });
+
+                const closeBtn = document.createElement('button');
+                closeBtn.innerText = "FECHAR POC (SUCESSO)";
+                Object.assign(closeBtn.style, {
+                    fontSize: "20px", padding: "10px 30px", background: "white", border: "none", cursor: "pointer"
+                });
+                closeBtn.onclick = () => {
+                    document.body.removeChild(overlay);
+                    stream.getTracks().forEach(t => t.stop());
+                };
+
+                overlay.appendChild(img);
+                overlay.appendChild(closeBtn);
+                document.body.appendChild(overlay);
+
+            } catch (e) {
+                alert("POC Falhou: " + e.message);
+            }
+        }
+
+        // 2. Capture Logic (V8 - VISUAL DEBUG MODE)
+        async function captureSniperTarget() {
+            const targetBox = document.getElementById('targetBox');
+            const btn = document.getElementById('btnMagicAction');
+
+            btn.innerText = "⚠️ Selecione a aba 'NVR Timeline'!";
+            btn.style.background = "#ff9800";
+
+            let stream = null;
+            let videoElem = null;
+
+            try {
+                // 1. Request Capture
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        displaySurface: 'browser',
+                        preferCurrentTab: true,
+                    },
+                    audio: false,
+                    // CRITICAL: Allows the current tab to appear in the list
+                    selfBrowserSurface: 'include',
+                    systemAudio: 'exclude',
+                    surfaceSwitching: 'include',
+                    monitorTypeSurfaces: 'include'
+                });
+
+                // 2. Setup Video - VISIBLE FOR DEBUGGING
+                videoElem = document.createElement('video');
+                videoElem.style.position = 'fixed';
+                videoElem.style.bottom = '10px';
+                videoElem.style.right = '10px';
+                videoElem.style.width = '320px'; // Mini preview
+                videoElem.style.height = '180px';
+                videoElem.style.border = '4px solid red';
+                videoElem.style.zIndex = '99999';
+                videoElem.style.background = '#000';
+                videoElem.autoplay = true;
+                videoElem.muted = true;
+                videoElem.srcObject = stream;
+
+                document.body.appendChild(videoElem);
+
+                // 3. Wait for Stream to be valid
+                await new Promise((resolve, reject) => {
+                    let attempts = 0;
+                    const check = setInterval(() => {
+                        attempts++;
+                        if (videoElem.videoWidth > 0 && videoElem.readyState >= 2) {
+                            clearInterval(check);
+                            resolve();
+                        }
+                        if (attempts > 40) { // 4 seconds
+                            clearInterval(check);
+                            reject(new Error("Stream de vídeo não iniciou (Tela Preta?)."));
+                        }
+                    }, 100);
+                    videoElem.play().catch(e => console.log("Autoplay blocked?", e));
+                });
+
+                // Allow a moment for the user to see the debug window and for frames to settle
+                await new Promise(r => setTimeout(r, 500));
+
+                // 4. Debug Metrics
+                const capW = videoElem.videoWidth;
+                const capH = videoElem.videoHeight;
+                const winW = window.innerWidth;
+                const winH = window.innerHeight;
+                const scaleX = capW / winW;
+
+                const boxRect = targetBox.getBoundingClientRect();
+                const cropX = Math.floor(boxRect.left * scaleX);
+                const cropY = Math.floor(boxRect.top * scaleX);
+                const cropW = Math.floor(boxRect.width * scaleX);
+                const cropH = Math.floor(boxRect.height * scaleX);
+
+                // DEBUG ALERT - REMOVE LATER
+                alert(`DEBUG:\nStream: ${capW}x${capH}\nWindow: ${winW}x${winH}\nCrop: ${cropX},${cropY} ${cropW}x${cropH}`);
+
+                // 5. Render
+                const canvas = document.createElement('canvas');
+                canvas.width = cropW;
+                canvas.height = cropH;
+                const ctx = canvas.getContext('2d');
+
+                ctx.drawImage(videoElem, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+                // 6. Show Result
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                const preview = document.getElementById('enhancePreview');
+                preview.src = dataUrl;
+
+                document.getElementById('enhanceModal').style.display = 'flex';
+                document.getElementById('btnProcessAI').style.display = 'inline-block';
+                document.getElementById('btnShareAI').style.display = 'none';
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+                document.getElementById('sniperOverlay').style.display = 'none';
+
+                btn.innerText = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+
+            } catch (e) {
+                console.error("[Sniper V8] Error:", e);
+                alert("Erro Debug: " + e.message);
+                btn.innerText = "✨ Melhorar Imagem";
+            } finally {
+                // Cleanup after a delay so user can see what happened
+                setTimeout(() => {
+                    if (stream) stream.getTracks().forEach(t => t.stop());
+                    if (videoElem && videoElem.parentNode) videoElem.parentNode.removeChild(videoElem);
+                }, 4000); // Keep debug preview for 4 seconds
+            }
+        }
+
+        function closeMagicLens() {
+            document.getElementById('enhanceModal').style.display = 'none';
+
+            // Reset Sniper Overlay & Button (Fix state desync)
+            const overlay = document.getElementById('sniperOverlay');
+            const btn = document.getElementById('btnMagicAction');
+
+            if (overlay) overlay.style.display = 'none';
+            if (btn) {
+                btn.innerHTML = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+            }
+        }
+
+        async function processAI() {
+            const preview = document.getElementById('enhancePreview');
+            const scanLine = document.getElementById('scanLine');
+            const loading = document.getElementById('enhanceLoading');
+            const pct = document.getElementById('loadingPercent');
+
+            document.getElementById('btnProcessAI').style.display = 'none';
+
+            scanLine.style.opacity = '1';
+            scanLine.style.animation = 'scan 2s linear infinite';
+            loading.style.display = 'block';
+
+            let p = 0;
+            const interval = setInterval(() => { p += Math.floor(Math.random() * 10); if (p > 95) p = 95; pct.innerText = p + "%"; }, 200);
+
+            try {
+                // Recuperar as imagens originais do dataset (setado pelo V13)
+                // Se nao tiver dataset (versoes antigas), usa o src atual como target e null como contexto.
+                const imgTarget = preview.dataset.target || preview.src;
+                const imgContext = preview.dataset.context || null;
+
+                const payload = {
+                    image_target: imgTarget,
+                    image_context: imgContext
+                };
+
+                const res = await fetch('/api/nvr/enhance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+
+                clearInterval(interval);
+                pct.innerText = "100%";
+
+                if (json.success && json.image) {
+                    setTimeout(async () => {
+                        // SUCCESS
+                        preview.dataset.enhanced = json.image; // Store for Tabs
+                        enhancedBlob = await (await fetch(json.image)).blob();
+
+                        document.getElementById('tabEnhanced').disabled = false;
+                        switchTab('enhanced'); // Auto-switch to result
+
+                        preview.style.filter = "none";
+                        preview.style.boxShadow = "0 0 20px cyan"; // Glow
+                        scanLine.style.display = 'none';
+                        loading.style.display = 'none';
+                        document.getElementById('btnShareAI').style.display = 'inline-block';
+
+                        // RECURSIVE ENHANCEMENT ENABLED
+                        const btnProcess = document.getElementById('btnProcessAI');
+                        btnProcess.style.display = 'inline-block';
+                        btnProcess.innerText = "✨ MELHORAR NOVAMENTE (+)";
+                        btnProcess.style.background = "linear-gradient(90deg, #ff4081, #7c4dff)";
+
+                        fetch(json.image).then(r => r.blob()).then(b => enhancedBlob = b);
+                    }, 500);
+                } else {
+                    alert("Erro AI: " + (json.error || "Unknown"));
+                    resetAIState();
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Falha na conexão.");
+                resetAIState();
+            }
+        }
+
+        function resetAIState() {
+            document.getElementById('btnProcessAI').style.display = 'inline-block';
+            document.getElementById('scanLine').style.opacity = '0';
+            document.getElementById('enhanceLoading').style.display = 'none';
+        }
+
+        async function shareEnhanced() {
+            try {
+                const preview = document.getElementById('enhancePreview');
+                const files = [];
+                const d = new Date();
+                const ts = d.toISOString().replace(/[:.]/g, '-');
+
+                // Helper
+                async function addFile(dataUrl, name) {
+                    if (dataUrl && dataUrl.startsWith('data:')) {
+                        const res = await fetch(dataUrl);
+                        const blob = await res.blob();
+                        files.push(new File([blob], name, { type: "image/jpeg" }));
+                    }
+                }
+
+                // 1. Enhanced (Priority)
+                if (preview.dataset.enhanced) await addFile(preview.dataset.enhanced, `evidence_AI_${ts}.jpg`);
+                else if (enhancedBlob) files.push(new File([enhancedBlob], `evidence_AI_${ts}.jpg`, { type: "image/jpeg" }));
+
+                // 2. Original Crop
+                if (preview.dataset.target) await addFile(preview.dataset.target, `evidence_ORIGINAL_${ts}.jpg`);
+
+                // 3. Context
+                if (preview.dataset.context) await addFile(preview.dataset.context, `evidence_CONTEXT_${ts}.jpg`);
+
+                if (files.length === 0) return alert("Nenhuma imagem para compartilhar.");
+
+                const shareData = {
+                    title: 'NVR Evidence Pack',
+                    text: `Evidência capturada em ${d.toLocaleString()}. Contém imagens Original, Contexto e Processada (IA).`,
+                    files: files
+                };
+
+                if (navigator.canShare && navigator.canShare(shareData)) {
+                    await navigator.share(shareData);
+                } else {
+                    // Fallback: Download Enhanced only or everything? Browser download usually one by one.
+                    // Just download the enhanced one as fallback.
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(files[0]);
+                    a.download = files[0].name;
+                    a.click();
+                    alert("Compartilhamento nativo não suportado. Baixando imagem principal.");
+                }
+            } catch (e) {
+                console.error("Share Failed:", e);
+                alert("Erro ao compartilhar: " + e.message);
+            }
+        }
+
+        function switchTab(mode) {
+            const img = document.getElementById('enhancePreview');
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(b => b.classList.remove('active'));
+
+            let src = null;
+            let label = "";
+
+            if (mode === 'target') {
+                src = img.dataset.target;
+                document.getElementById('tabTarget').classList.add('active');
+                label = "VISUALIZAÇÃO: ORIGINAL (CORTE)";
+            } else if (mode === 'enhanced') {
+                src = img.dataset.enhanced;
+                document.getElementById('tabEnhanced').classList.add('active');
+                label = "VISUALIZAÇÃO: IA (MELHORADA)";
+            } else if (mode === 'context') {
+                src = img.dataset.context;
+                document.getElementById('tabContext').classList.add('active');
+                label = "VISUALIZAÇÃO: CONTEXTO (CENA)";
+            }
+
+            if (src) {
+                img.src = src;
+                if (mode === 'context') img.style.objectFit = 'contain';
+                else img.style.objectFit = 'contain'; // Keep consistency
+
+                // Update Label if exists
+                const lbl = document.getElementById('previewLabel');
+                if (lbl) lbl.innerText = label;
+            }
+        }
+
+
+        // Add Keyframes for Scan
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = `
+            @keyframes scan {
+                0% { top: 0%; opacity: 0; }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { top: 100%; opacity: 0; }
+            }
+        `;
+        document.head.appendChild(styleSheet);
+
+        function applyCrop() {
+            const v = document.getElementById('player');
+
+            // Reset Styles first? No, we want to keep Zoom transform if possible, 
+            // but crop changes base geometry.
+            // Resetting transform here clears zoom, which is safer when changing crop/video.
+            // dZoom = 1; dTransX = 0; dTransY = 0;
+            // v.style.transform = 'none';
+
+            v.style.width = '100%';
+            v.style.height = '100%';
+            v.style.objectFit = 'contain';
+            // v.style.transform = 'none'; // REMOVED to allow Zoom
+            if (dZoom === 1) v.style.transform = 'none'; // Only reset if no zoom active
+
+            v.style.transformOrigin = 'center center';
+
+            if (CROP === 1 || CROP === 2) {
+                console.log("Applying SMART SCALE CROP (Centered):", CROP);
+
+                // ... [Same Crop Logic] ...
+
+                v.style.position = 'relative';
+                v.style.width = 'auto';
+                v.style.height = 'auto';
+                v.style.maxWidth = '100%';
+                v.style.maxHeight = '100%';
+
+                v.style.aspectRatio = '16 / 9';
+                v.style.margin = 'auto';
+
+                v.style.objectFit = 'cover';
+                // v.style.transform = 'none'; // Don't reset transform here if zooming
+                if (dZoom === 1) v.style.transform = 'none';
+
+                if (CROP === 1) v.style.objectPosition = 'top center';
+                if (CROP === 2) v.style.objectPosition = 'bottom center';
+            }
+        }
+
+        // Listen to loadmetadata to ensure video dimensions are known?
+        // Transform works on the element box, safe to run early.
+        window.addEventListener('load', applyCrop);
+        // Also re-apply when video loads metadata just in case
+        document.getElementById('player').addEventListener('loadedmetadata', applyCrop);
+
+        // --- GLOBAL CONFIGURATION (TEST LAB vs PROD) ---
+        const isTestLab = window.location.port === '5001';
+
+        // UNIFIED PROXY ARCHITECTURE
+        // Agora o Proxy de Producao (5000) e o de Teste (5001) ambos suportam
+        // roteamento para a API NVR (/api/nvr e /video).
+        // Portanto, usamos sempre a origem atual. Isso habilita suporte a Cloudflare.
+        const API_URL = window.location.origin;
+
+        // Back Button Logic Global Function
+        function goBack() {
+            if (isTestLab) {
+                window.location.href = '/dashboard.html';
+            } else {
+                // Production: Use relative path to keep current origin/port (fixes Cloudflare/Reverse Proxy issues)
+                window.location.href = '/dashboard.html';
+            }
+        }
+
+        // Global State & Utils
+        var fpInstance = null;
+
+        // Sync helper to update Flatpickr without triggering events loop
+        function syncFlatpickr(dateObj) {
+            if (fpInstance && !fpInstance.isOpen) {
+                fpInstance.setDate(dateObj, false); // false = no trigger onChange
+            }
+        }
+
+        // Initialize Global Camera List
+        let allCameras = [];
+
+        async function loadCameras() {
+            try {
+                // Determine API base similar to fetchData
+                const vmsApiBase = window.location.port === '5002' ? '' : '/api/proxy';
+
+                const r = await fetch('/api/cameras');
+                if (!r.ok) throw new Error("API Error");
+
+                const cams = await r.json();
+
+                // ENRICH DATA (Fix missing IDs and inconsistent keys)
+                cams.forEach(c => {
+                    // 1. Generate Safe ID if missing (Normalização igual ao Python/Recorder)
+                    if (!c.id) {
+                        c.id = c.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]/g, "_")
+                            .replace(/_+/g, "_")
+                            .replace(/^_|_$/g, "");
+                    }
+                    // 2. Map crop_mode to crop (Frontend uses 'crop', API uses 'crop_mode')
+                    if (c.crop_mode !== undefined) {
+                        c.crop = c.crop_mode;
+                    }
+                });
+
+                allCameras = cams; // Store enriched list
+
+                const sel = document.getElementById('camSelector');
+                sel.innerHTML = '';
+
+                cams.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.innerText = c.name + (c.crop ? " (Crop)" : "");
+                    // Check selection (CAMERA global var is derived from URL param 'camera')
+                    if (c.id === CAMERA) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                console.error("Camera load error:", e);
+                hud.innerText = "Erro ao carregar câmeras.";
+            }
+        }
+
+        // Init
+        loadCameras();
+
+        // Logic to switch camera respecting CROP config
+        function changeCam(val) {
+            console.log("Changing Cam to:", val);
+
+            // Check config for this camera
+            const camConfig = allCameras.find(c => c.id === val);
+            let hasCrop = false;
+
+            // "Modo de Exibição (corte)" usually mapped to 'crop' property in JSON
+            // Check both 'crop' (boolean/int) and 'crop_window' (string config) just in case
+            if (camConfig && (camConfig.crop || camConfig.crop_window)) {
+                hasCrop = true;
+                console.log(`Camera ${val} has crop/cut enabled.`);
+            }
+
+            // Construct URL
+            let newUrl = window.location.pathname + `?camera=${val}`;
+            if (hasCrop) {
+                newUrl += `&crop=1`;
+            }
+
+            window.location.href = newUrl;
+        }
+
+        // Expose to Global Scope for HTML onchange
+        window.changeCam = changeCam;
+
+
+        // State
+        let segments = [];
+        let viewWindow = 1800; // Default 30 min
+        let centerTime = Math.floor(Date.now() / 1000);
+        let currentFileStart = 0;
+
+        const canvas = document.getElementById('timeline');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('player');
+        const hud = document.getElementById('hud');
+
+        // Global Sync Listener (Registered Once)
+        video.addEventListener('loadedmetadata', () => {
+            console.log(`[Video] Loaded Metadata. Duration: ${video.duration}`);
+
+            // Find segment matching currentFileStart with allowance for small floating point diff
+            const seg = segments.find(s => Math.abs(s.start - currentFileStart) < 0.5);
+
+            if (seg) {
+                const diff = Math.abs((seg.end - seg.start) - video.duration);
+                if (diff > 1.0) {
+                    console.log(`[Sync] Updating Segment Visual Duration from ${(seg.end - seg.start).toFixed(2)}s to ${video.duration.toFixed(2)}s`);
+                    seg.end = seg.start + video.duration;
+                    draw();
+                }
+            }
+        });
+
+        function setZoom(seconds) {
+            viewWindow = seconds;
+            draw();
+            // Highlight active button? (Optional UX polish)
+        }
+
+        // ... [Resize / FetchData kept same] ...
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const startVisible = centerTime - (viewWindow / 2);
+            const endVisible = centerTime + (viewWindow / 2);
+            const pxPerSec = canvas.width / viewWindow;
+
+            // Dynamic Grid Interval based on Zoom
+            let interval = 300; // default 5 min
+            if (viewWindow >= 3600) interval = 900; // 15 min for 1h+ view
+            if (viewWindow <= 1800) interval = 300; // 5 min for 30m view
+            if (viewWindow <= 600) interval = 60;   // 1 min for 10m view
+            if (viewWindow <= 60) interval = 10;    // 10 sec for 1m view
+
+            const firstMark = Math.floor(startVisible / interval) * interval;
+
+            ctx.fillStyle = '#666';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+
+            for (let t = firstMark; t < endVisible; t += interval) {
+                const x = (t - startVisible) * pxPerSec;
+
+                // Vertical Line
+                ctx.beginPath();
+                ctx.moveTo(x, 15);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+
+                // Label (HH:MM:SS if zoom is deep, else HH:MM)
+                const date = new Date(t * 1000);
+                let label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                if (viewWindow <= 60) {
+                    label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                }
+                ctx.fillText(label, x, 10);
+            }
+
+            // Draw Segments
+            segments.forEach(seg => {
+                if (seg.end < startVisible || seg.start > endVisible) return;
+                const x = (seg.start - startVisible) * pxPerSec;
+                const w = Math.max((seg.end - seg.start) * pxPerSec, 2);
+
+                ctx.fillStyle = (seg.type === 'motion') ? '#c62828' : '#2e7d32';
+                ctx.fillRect(x, 20, w, canvas.height - 40);
+            });
+
+            // Center Line (Cursor)
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        const container = document.getElementById('timeline-box');
+
+        // Init
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Mouse Drag Logic
+        let isDragging = false;
+        let lastX = 0;
+
+        // MOUSE EVENTS
+        container.addEventListener('mousedown', e => {
+            isDragging = true;
+            lastX = e.clientX;
+            video.pause(); // Pause while scrubbing
+        });
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                seekTo(centerTime, false); // Stay paused after seek
+            }
+        });
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            e.preventDefault(); // Prevent text selection
+            const dx = e.clientX - lastX;
+            lastX = e.clientX;
+            processDrag(dx);
+        });
+
+        // TOUCH EVENTS (MOBILE FIX)
+        container.addEventListener('touchstart', e => {
+            if (e.touches.length > 0) {
+                isDragging = true;
+                lastX = e.touches[0].clientX;
+                video.pause();
+            }
+        }, { passive: false }); // Needs passive:false to allow preventDefault later if needed
+
+        window.addEventListener('touchend', () => {
+            if (isDragging) {
+                isDragging = false;
+                seekTo(centerTime, false);
+            }
+        });
+
+        window.addEventListener('touchmove', e => {
+            if (!isDragging) return;
+            // Prevent scrolling page while dragging timeline
+            if (e.target.closest('.timeline-container')) {
+                e.preventDefault();
+            }
+            if (e.touches.length > 0) {
+                const clientX = e.touches[0].clientX;
+                const dx = clientX - lastX;
+                lastX = clientX;
+                processDrag(dx);
+            }
+        }, { passive: false });
+
+        function processDrag(dx) {
+            // Pixels to Seconds
+            const pxPerSec = canvas.width / viewWindow;
+            const dt = -dx / pxPerSec;
+
+            centerTime += dt;
+            draw();
+        }
+
+        container.addEventListener('dblclick', e => {
+            // Seek to click
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const pct = x / canvas.width;
+
+            const startVisible = centerTime - (viewWindow / 2);
+            const clickTime = startVisible + (pct * viewWindow);
+
+            seekTo(clickTime);
+        });
+
+        function resize() {
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+            draw();
+        }
+
+        async function fetchData(customStart, customEnd) {
+            // Load last 24h by default, or use custom range
+            let start, end;
+
+            if (customStart && customEnd) {
+                start = customStart;
+                end = customEnd;
+            } else {
+                const now = Math.floor(Date.now() / 1000);
+                start = now - 86400; // Last 24h
+                end = now;
+            }
+
+            console.log(`[API] Fetching timeline: ${new Date(start * 1000).toLocaleString()} -> ${new Date(end * 1000).toLocaleString()}`);
+            centerTime = (start + end) / 2; // Auto-center if not set? No, keep focus.
+            // If custom range (Date Filter), center was already set by handleDateFilter.
+
+            try {
+                // Determine API base - Relative or Absolute
+                // If running on 5000 (Proxy), use relative /api/nvr/timeline
+                // If running on 5002 (Test), use relative /api/nvr/timeline (served by flask on root?)
+                // Actually nvr_api_new.py serves /api/nvr/timeline.
+                // vms_proxy.py proxies /api/nvr/* -> nvr_api_new:5002/api/nvr/*
+                // So relative path works for BOTH!
+                const apiPath = '/api/nvr/timeline';
+
+                const res = await fetch(`${apiPath}?camera=${CAMERA}&start=${start}&end=${end}`);
+                if (!res.ok) throw new Error("API Status: " + res.status);
+
+                segments = await res.json();
+                console.log(`Loaded ${segments.length} segments.`);
+                draw();
+
+                // If loading default (auto-load), jump to NOW or end of today. 
+                // If filtering, stay on centerTime (noon).
+                if (!customStart) {
+                    // FORCE DEFAULT TO NOW (Users Request #2)
+                    const now = Math.floor(Date.now() / 1000);
+                    centerTime = now;
+                    draw();
+                } else if (customStart) {
+                    draw(); // Just redraw
+                }
+            } catch (e) {
+                console.error(e);
+                hud.innerText = `Erro API: ${e.message}`;
+                hud.style.color = 'red';
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const startVisible = centerTime - (viewWindow / 2);
+            const endVisible = centerTime + (viewWindow / 2);
+            const pxPerSec = canvas.width / viewWindow;
+
+            // Draw Grid (Every 30 min)
+            const interval = 1800; // 30 min
+            const firstMark = Math.floor(startVisible / interval) * interval;
+
+            ctx.fillStyle = '#666';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+
+            for (let t = firstMark; t < endVisible; t += interval) {
+                const x = (t - startVisible) * pxPerSec;
+
+                // Vertical Line
+                ctx.beginPath();
+                ctx.moveTo(x, 15);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+
+                // Label (HH:MM)
+                const date = new Date(t * 1000);
+                const label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                ctx.fillText(label, x, 10);
+            }
+
+            // Draw Segments
+            segments.forEach(seg => {
+                if (seg.end < startVisible || seg.start > endVisible) return;
+                const x = (seg.start - startVisible) * pxPerSec;
+                const w = Math.max((seg.end - seg.start) * pxPerSec, 2); // Min 2px width
+
+                // Color
+                ctx.fillStyle = '#2e7d32'; // Green
+                if (seg.type === 'motion') ctx.fillStyle = '#c62828'; // Red
+
+                // Draw Bar (Mid-height)
+                ctx.fillRect(x, 20, w, canvas.height - 40);
+            });
+
+            // Center Line (Cursor)
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Update Dynamic Timestamp (User Request)
+            const centerDate = new Date(centerTime * 1000);
+
+            // 1. Update Text Display
+            const tsEl = document.getElementById('timestamp-display');
+            if (tsEl) {
+                const day = String(centerDate.getDate()).padStart(2, '0');
+                const month = String(centerDate.getMonth() + 1).padStart(2, '0');
+                const year = centerDate.getFullYear();
+                const h = String(centerDate.getHours()).padStart(2, '0');
+                const m = String(centerDate.getMinutes()).padStart(2, '0');
+                const s = String(centerDate.getSeconds()).padStart(2, '0');
+                tsEl.innerText = `${day}/${month}/${year} ${h}:${m}:${s}`;
+            }
+
+            // 1.5 Sync Flatpickr (Custom Calendar)
+            if (typeof syncFlatpickr === 'function') {
+                try {
+                    syncFlatpickr(centerDate);
+                } catch (e) {
+                    // Ignore sync errors to prevent loop crash
+                }
+            }
+        }
+
+        // === FLATPICKR INTEGRATION (Custom Calendar with Embedded GO Button) ===
+        // We initialize this once page loads or element is ready.
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fpInstance = flatpickr("#timestamp-display", {
+                enableTime: true,
+                dateFormat: "d/m/Y H:i:S",
+                time_24hr: true,
+                defaultDate: new Date(),
+                disableMobile: "true", // Force custom picker even on mobile to ensure GO button exists
+                onReady: function (selectedDates, dateStr, instance) {
+                    // Inject GO button into the calendar container
+                    const btnContainer = document.createElement("div");
+                    btnContainer.style.padding = "10px";
+                    btnContainer.style.textAlign = "center";
+                    btnContainer.style.borderTop = "1px solid #444";
+
+                    const btn = document.createElement("button");
+                    btn.innerText = "GO 🚀";
+                    btn.style.background = "#2e7d32";
+                    btn.style.color = "white";
+                    btn.style.border = "none";
+                    btn.style.padding = "5px 20px";
+                    btn.style.borderRadius = "4px";
+                    btn.style.cursor = "pointer";
+                    btn.style.fontWeight = "bold";
+
+                    btn.onclick = () => {
+                        if (instance.selectedDates.length > 0) {
+                            const isoStr = instance.selectedDates[0].toISOString();
+                            handleTimeJump(isoStr);
+                            instance.close();
+                        }
+                    };
+
+                    btnContainer.appendChild(btn);
+                    instance.calendarContainer.appendChild(btnContainer);
+                }
+            });
+        });
+
+        // === FULLSCREEN LOGIC ===
+        function toggleFullscreen() {
+            // Close menu if open
+            const dropdown = document.getElementById("mainDropdown");
+            if (dropdown && dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+            }
+
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        /* DRAWER LOGIC */
+        function toggleDrawer() {
+            document.getElementById('drawer').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('open');
+        }
+
+        // Close drawer if open when going fullscreen? Usually keep it separate.
+        // But if user wants full immersion, maybe close it.
+        // Let's rely on toggleDrawer inside the menu item click.
+
+        // === CLOCK ===
+        function updateClock() {
+            const now = new Date();
+            const d = String(now.getDate()).padStart(2, '0');
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const y = now.getFullYear();
+            const H = String(now.getHours()).padStart(2, '0');
+            const M = String(now.getMinutes()).padStart(2, '0');
+            const S = String(now.getSeconds()).padStart(2, '0');
+
+            const el = document.getElementById('app-clock');
+            if (el) {
+                // Format: DD/MM/YYYY HH:MM:SS
+                el.innerHTML = `${d}/${m}/${y}&nbsp;&nbsp;${H}:${M}:${S}`;
+            }
+        }
+        setInterval(updateClock, 1000);
+        // Initial call after load
+        window.addEventListener('load', updateClock);
+
+        function handleTimeJump(isoVal) {
+            if (!isoVal) return;
+            const ts = new Date(isoVal).getTime() / 1000;
+            console.log("Jumping to Date/Time:", isoVal, ts);
+
+            // 1. Check if we need to reload data (Different Day?)
+            const currentDayStart = new Date(centerTime * 1000).setHours(0, 0, 0, 0) / 1000;
+            const newDayStart = new Date(ts * 1000).setHours(0, 0, 0, 0) / 1000;
+
+            if (currentDayStart !== newDayStart) {
+                // Determine Day Range
+                const startOfDay = newDayStart;
+                const endOfDay = startOfDay + 86400;
+
+                // Update Global Center (so seek works after load)
+                centerTime = ts;
+
+                // Fetch new data
+                fetchData(startOfDay, endOfDay).then(() => {
+                    // After load, seek to exact second
+                    seekTo(ts, true);
+                });
+            } else {
+                // Same day, just seek
+                seekTo(ts, true);
+            }
+        }
+
+        // === DATE FILTER LOGIC (Legacy - kept for reference if needed) ===
+        // Set default date to today
+        const dateInput = document.getElementById('datePicker');
+        if (dateInput) dateInput.valueAsDate = new Date();
+
+        function handleDateFilter() {
+            // Reload data for the selected day (00:00 to 23:59)
+            // Local Time midnight
+            if (!dateInput.value) return;
+
+            const selected = new Date(dateInput.value + 'T00:00:00');
+            const startOfDay = selected.getTime() / 1000;
+            const endOfDay = startOfDay + 86400;
+
+            console.log("Date Filter Changed:", selected.toLocaleDateString(), startOfDay, endOfDay);
+
+            // Update Center to noon of that day
+            centerTime = startOfDay + 43200;
+
+            fetchData(startOfDay, endOfDay);
+        }
+
+        function forceReload() {
+            handleDateFilter();
+        }
+
+        // === SEEK & PLAYBACK LOGIC ===
+        function seekTo(ts, autoPlay = true) {
+            console.log("Seeking to:", ts, "AutoPlay:", autoPlay);
+            centerTime = ts;
+            draw(); // Move cursor
+
+            // Seek Logic Start
+            // Find segment that CONTAINS this timestamp
+            const seg = segments.find(s => ts >= s.start && s.end >= ts);
+
+            if (seg) {
+                const offset = ts - seg.start;
+                // Use src_camera (physical folder) if available, else camera (logical)
+                const folder = seg.src_camera || seg.camera || CAMERA;
+                const src = `${API_URL}/video/${folder}/${seg.filename}`;
+
+                // Smart Seek Check
+                const currentUrl = video.src.split('#')[0]; // Remove existing hash
+                const targetUrl = src;
+
+                // Compare relative paths or endsWith to avoid full URL mismatch
+                if (currentUrl.endsWith(seg.filename) && !Number.isNaN(video.duration) && !video.error) {
+                    // SAME video file. Just seek within it.
+                    console.log(`[Smart Seek] Moving currentTime to ${offset}`);
+                    if (Math.abs(video.currentTime - offset) > 1) {
+                        video.currentTime = offset;
+                    }
+                    if (autoPlay) {
+                        safePlay();
+                    }
+                } else {
+                    // NEW video file. Load it.
+                    console.log(`[Player] Loading new src: ${src}#t=${offset}`);
+                    currentFileStart = seg.start;
+
+                    hud.innerText = `Carregando arquivo...`;
+                    hud.style.color = 'yellow';
+
+                    video.src = `${src}#t=${offset}`;
+                    video.load(); // Force internal reset
+
+                    if (autoPlay) {
+                        safePlay();
+                    }
+                }
+            } else {
+                // No video at this timestamp (Gap)
+                hud.innerText = `Sem gravação em: ${new Date(ts * 1000).toLocaleTimeString()}`;
+                hud.style.color = 'gray';
+
+                // If we were playing, should we auto-skip gap?
+                // Let's look ahead for the next segment
+                if (autoPlay) {
+                    const nextSeg = segments.find(s => s.start > ts);
+                    if (nextSeg && (nextSeg.start - ts) < 60) { // If gap is small (< 1 min), jump
+                        console.log("Gap small, jumping to next...");
+                        seekTo(nextSeg.start, true);
+                    } else {
+                        video.pause();
+                        video.removeAttribute('src'); // Stop buffering
+                    }
+                }
+            }
+        }
+
+        // ROBUST ERROR HANDLING (Fixes "Stuck" issues)
+        video.addEventListener('error', (e) => {
+            const err = video.error;
+            let msg = "Erro desconhecido";
+            if (err) {
+                if (err.code === 3) msg = "Erro Decode";
+                if (err.code === 4) msg = "Arquivo Inválido/Não Suportado";
+            }
+            console.error("Video Error Event:", err, msg);
+
+            // AGGRESSIVE AUTO-SKIP
+            hud.innerText = `⚠️ ${msg}. Pulando arquivo...`;
+            hud.style.color = 'orange';
+
+            // Find current segment index
+            const idx = segments.findIndex(s => s.start === currentFileStart);
+
+            if (idx !== -1 && idx < segments.length - 1) {
+                const nextSeg = segments[idx + 1];
+                console.warn(`[Auto-Skip] Jumping from Corrupt File (${currentFileStart}) -> Next (${nextSeg.start})`);
+
+                // Add tiny delay to prevent CPU spin loop if all files are bad
+                setTimeout(() => {
+                    seekTo(nextSeg.start, true);
+                }, 1000);
+            } else {
+                hud.innerText = "❌ Fim da linha (Erro no último arquivo)";
+                hud.style.color = 'red';
+            }
+        });
+
+        function nextSegment() {
+            hud.innerText = "⏭️ Buscando próximo...";
+            // Find first segment starting AFTER current view position
+            const next = segments.find(s => s.start > centerTime + 2); // 2s tolerance
+            if (next) {
+                console.log("Manual Next ->", next.start);
+                hud.innerText = "Carregando próximo...";
+                seekTo(next.start, true);
+            } else {
+                console.log("No next segment.");
+                hud.innerText = "Fim da lista.";
+            }
+        }
+
+        function prevSegment() {
+            hud.innerText = "⏮️ Buscando anterior...";
+            // Find last segment ending BEFORE current view position
+            const prev = segments.slice().reverse().find(s => s.end < centerTime - 2);
+            if (prev) {
+                seekTo(prev.start, true);
+            } else {
+                hud.innerText = "Inicio da lista.";
+            }
+        }
+
+        // Disable Legacy Watchdog (conflicts with slow network logic)
+        // video.addEventListener('waiting', () => {
+        //     console.log("Video Buffering/Stalled...");
+        //     if (playbackWatchdog) clearTimeout(playbackWatchdog);
+        //     playbackWatchdog = setTimeout(() => {
+        //         console.warn("Watchdog: Video stuck for 5s. Skipping...");
+        //         nextSegment();
+        //     }, 5000);
+        // });
+        video.addEventListener('playing', () => {
+            // if (playbackWatchdog) clearTimeout(playbackWatchdog); // Removed with watchdog
+            hud.innerText = "Reproduzindo ✅";
+            hud.style.color = '#4CAF50';
+        });
+
+        // Freeze Detector (Cloudflare / Slow Network Optimized)
+        // User Requested: 20 minutes timeout
+        let lastProgressTime = Date.now();
+
+        video.addEventListener('progress', () => {
+            lastProgressTime = Date.now();
+        });
+
+        setInterval(() => {
+            // Check if playing but stuck
+            const isPlaying = !video.paused && !video.ended;
+            const isStuck = video.currentTime === lastPlayTime;
+            const isBuffering = video.readyState < 3;
+
+            // If buffering but downloading data (progress event < 3s ago), considered "Health Buffering"
+            const dataFlowing = (Date.now() - lastProgressTime) < 3000;
+
+            if (isPlaying && (isStuck || isBuffering)) {
+                // If data is flowing, we serve as a "soft" freeze (increment slowly or ignore?)
+                // Let's count anyway because we don't want to wait forever if download is too slow to play.
+                freezeCounter++;
+
+                // Threshold: 30s (Reverted to reasonable Cloudflare latency)
+                if (freezeCounter >= 30) {
+                    console.error("[Freeze Detector] STALL DETECTED. SKIPPING.");
+                    hud.innerText = "❄️ Timeout de Rede (30s). Pulando...";
+                    hud.style.color = 'orange';
+                    freezeCounter = 0;
+                    nextSegment();
+                } else if (freezeCounter > 5) {
+                    // Visual feedback
+                    hud.innerText = `Buffering... (${freezeCounter}s)`;
+                    hud.style.color = 'yellow';
+                }
+            } else {
+                freezeCounter = 0;
+                lastPlayTime = video.currentTime;
+            }
+        }, 1000);
+
+        // Safe Play Helper
+        async function safePlay() {
+            try {
+                await video.play();
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    // Ignore aborts caused by fast seeking
+                    console.log("Play aborted (expected during seek).");
+                } else {
+                    console.error("Play error:", err);
+                }
+            }
+        }
+
+        // Sync Timeline with Video Playback & Auto-Next
+        video.addEventListener('timeupdate', () => {
+            if (isDragging || !currentFileStart) return;
+
+            // 1. Update timeline center
+            const nowTs = currentFileStart + video.currentTime;
+            centerTime = nowTs;
+            draw();
+
+            // 2. Check for End of Segment (Gapless Playback)
+            // Find current segment object to know its end (Robust Epsilon match)
+            const currentSeg = segments.find(s => Math.abs(s.start - currentFileStart) < 0.5);
+
+            if (currentSeg && nowTs >= currentSeg.end - 0.5) { // 0.5s buffer before end
+                // Find next segment
+                const nextSeg = segments.find(s => s.start > currentSeg.start); // Sorted auto finder
+                if (nextSeg && (nextSeg.start - currentSeg.end) < 5) { // Only if gap is small (<5s)
+                    console.log("Auto-playing next segment...");
+                    // Do not seek if we just seeked (debounce?)
+                    // For now, trust seekTo
+                    seekTo(nextSeg.start);
+                }
+            }
+        });
+
+        // Loop Detector (Time going backwards)
+        let lastUpdateTs = 0;
+        let loopCount = 0;
+        video.addEventListener('timeupdate', () => {
+            if (isDragging || video.paused) {
+                lastUpdateTs = video.currentTime;
+                return;
+            }
+
+            // High Sensitivity: 0.1s drop
+            if (video.currentTime < lastUpdateTs - 0.1) {
+                loopCount++;
+                // console.warn(`[Loop] Backwards detect ${loopCount}`);
+
+                if (loopCount > 3) { // 3 ticks of backward movement
+                    hud.innerText = "🔄 Loop Micro detectado. Pulando...";
+                    hud.style.color = 'magenta';
+                    loopCount = 0;
+                    nextSegment();
+                }
+            } else {
+                if (video.currentTime > lastUpdateTs) loopCount = 0;
+            }
+            lastUpdateTs = video.currentTime;
+        });
+
+        // Fail-safe Ended Trigger
+        video.addEventListener('ended', () => {
+            console.log("[Video] Ended event fired. Calling nextSegment.");
+            nextSegment();
+        });
+
+        function goLive() {
+            // Just jump to end
+            centerTime = Math.floor(Date.now() / 1000);
+            fetchData();
+        }
+
+        // 3. Capture Logic (V10 - Optical Auto-Calibrate)
+        async function captureSniperTargetV10() {
+            const targetBox = document.getElementById('targetBox');
+            const btn = document.getElementById('btnMagicAction');
+            const overlay = document.getElementById('sniperOverlay');
+
+            btn.innerText = "⏳ Scan...";
+
+            let stream = null;
+
+            try {
+                // 1. Prepare Target for Optical Scan
+                // Make the border Pure Green (#00FF00) and thick
+                const originalBorder = targetBox.style.border;
+                const originalShadow = targetBox.style.boxShadow;
+
+                targetBox.style.boxShadow = "none";
+                targetBox.style.border = "6px solid #00FF00";
+
+                // Allow render frame
+                await new Promise(r => requestAnimationFrame(() => setTimeout(r, 100)));
+
+                // 2. Get Stream (Current Tab)
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { preferCurrentTab: true },
+                    audio: false,
+                    selfBrowserSurface: 'include',
+                    systemAudio: 'exclude'
+                });
+
+                // 3. Capture Frame
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.srcObject = stream;
+                await new Promise(r => video.onloadedmetadata = r);
+                await video.play();
+                await new Promise(r => setTimeout(r, 300)); // Short buffer
+
+                const capW = video.videoWidth;
+                const capH = video.videoHeight;
+
+                // 4. Scan Pixels
+                const fullCanvas = document.createElement('canvas');
+                fullCanvas.width = capW;
+                fullCanvas.height = capH;
+                const fullCtx = fullCanvas.getContext('2d');
+                fullCtx.drawImage(video, 0, 0);
+
+                const frame = fullCtx.getImageData(0, 0, capW, capH);
+                const data = frame.data;
+                let minX = capW, minY = capH, maxX = 0, maxY = 0;
+                let found = false;
+
+                // Scan (Step 4 for speed)
+                for (let y = 0; y < capH; y += 4) {
+                    for (let x = 0; x < capW; x += 4) {
+                        const i = (y * capW + x) * 4;
+                        // Green Detector: G > 200, R < 100, B < 100
+                        if (data[i + 1] > 200 && data[i] < 100 && data[i + 2] < 100) {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                            found = true;
+                        }
+                    }
+                }
+
+                // 5. Restore UI (Hide Overlay)
+                targetBox.style.border = originalBorder;
+                targetBox.style.boxShadow = originalShadow;
+                overlay.style.display = 'none';
+
+                // 6. Determine Crop
+                let cropX, cropY, cropW, cropH;
+                if (found && (maxX - minX > 50)) {
+                    // Crop Inside Border
+                    const borderW = 6;
+                    cropX = minX + borderW;
+                    cropY = minY + borderW;
+                    cropW = (maxX - minX) - (borderW * 2);
+                    cropH = (maxY - minY) - (borderW * 2);
+                    console.log(`[V10] Auto-Calibrated: ${cropX},${cropY} ${cropW}x${cropH}`);
+                } else {
+                    // Fallback
+                    console.warn("[V10] Green Box not found. Using fallback.");
+                    const winW = window.innerWidth;
+                    const winH = window.innerHeight;
+                    const scaleX = capW / winW;
+                    const scaleY = capH / winH;
+                    const rect = targetBox.getBoundingClientRect();
+                    cropX = rect.left * scaleX;
+                    cropY = rect.top * scaleY;
+                    cropW = rect.width * scaleX;
+                    cropH = rect.height * scaleY;
+                }
+
+                // 7. Draw Final
+                const canvas = document.createElement('canvas');
+                canvas.width = cropW;
+                canvas.height = cropH;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+                // 8. Show
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                const preview = document.getElementById('enhancePreview');
+                preview.src = dataUrl;
+                preview.style.filter = 'none';
+
+                document.getElementById('enhanceModal').style.display = 'flex';
+                document.getElementById('btnProcessAI').style.display = 'inline-block';
+                document.getElementById('btnShareAI').style.display = 'none';
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+
+                btn.innerText = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+
+            } catch (e) {
+                console.error(e);
+                alert("Erro V10: " + e.message);
+            } finally {
+                if (stream) stream.getTracks().forEach(t => t.stop());
+            }
+        }
+
+        // Auto load
+        // 3. Capture Logic (V11 - Region Capture API)
+        async function captureSniperTargetV11() {
+            const targetBox = document.getElementById('targetBox');
+            const btn = document.getElementById('btnMagicAction');
+            const overlay = document.getElementById('sniperOverlay');
+
+            btn.innerText = "⏳ Calibrando...";
+
+            let stream = null;
+            let cropTarget = null;
+            let useRegionCapture = false;
+
+            try {
+                // Determine Strategy
+                useRegionCapture = ('CropTarget' in window) && (typeof CropTarget.fromElement === 'function');
+                console.log("[V11] Strategy:", useRegionCapture ? "Region Capture API" : "Pixel Scan Fallback");
+
+                const originalBorder = targetBox.style.border;
+                const originalShadow = targetBox.style.boxShadow;
+                targetBox.style.boxShadow = "none";
+
+                if (useRegionCapture) {
+                    targetBox.style.border = "none"; // Clean box
+                    cropTarget = await CropTarget.fromElement(targetBox);
+                } else {
+                    targetBox.style.border = "6px solid #00FF00";
+                }
+
+                // Force layout update
+                await new Promise(r => requestAnimationFrame(() => setTimeout(r, 200)));
+
+                // 2. Start Capture
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { preferCurrentTab: true },
+                    audio: false,
+                    selfBrowserSurface: 'include',
+                    systemAudio: 'exclude'
+                });
+
+                const track = stream.getVideoTracks()[0];
+
+                // 3. Apply Crop (If Native)
+                if (useRegionCapture && cropTarget) {
+                    try {
+                        await track.cropTo(cropTarget);
+                        console.log("[V11] Native Crop Applied.");
+                    } catch (err) {
+                        console.warn("Region Capture Failed (Wrong Tab?):", err);
+                        useRegionCapture = false; // Trigger fallback logic
+                        // Emergency Border Repaint for Fallback
+                        targetBox.style.border = "6px solid #00FF00";
+                        await new Promise(r => setTimeout(r, 250)); // Wait for repaint in stream
+                    }
+                }
+
+                // 4. Capture Frame
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.srcObject = stream;
+                await new Promise(r => video.onloadedmetadata = r);
+                await video.play();
+                await new Promise(r => setTimeout(r, 400)); // Settle time
+
+                const capW = video.videoWidth;
+                const capH = video.videoHeight;
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                let finalCropW = capW;
+                let finalCropH = capH;
+
+                if (useRegionCapture) {
+                    // Already cropped natively
+                    canvas.width = capW;
+                    canvas.height = capH;
+                    ctx.drawImage(video, 0, 0);
+                } else {
+                    // PIXEL SCAN FALLBACK
+                    console.log("[V11] Executing Pixel Scan...");
+                    const fullCanvas = document.createElement('canvas');
+                    fullCanvas.width = capW;
+                    fullCanvas.height = capH;
+                    const fullCtx = fullCanvas.getContext('2d');
+                    fullCtx.drawImage(video, 0, 0);
+                    const data = fullCtx.getImageData(0, 0, capW, capH).data;
+
+                    let minX = capW, minY = capH, maxX = 0, maxY = 0, found = false;
+                    for (let y = 0; y < capH; y += 4) {
+                        for (let x = 0; x < capW; x += 4) {
+                            const i = (y * capW + x) * 4;
+                            if (data[i + 1] > 200 && data[i] < 100 && data[i + 2] < 100) {
+                                if (x < minX) minX = x;
+                                if (x > maxX) maxX = x;
+                                if (y < minY) minY = y;
+                                if (y > maxY) maxY = y;
+                                found = true;
+                            }
+                        }
+                    }
+
+                    if (found && (maxX - minX > 20)) {
+                        const bW = 6;
+                        const cX = minX + bW;
+                        const cY = minY + bW;
+                        const cW = (maxX - minX) - (bW * 2);
+                        const cH = (maxY - minY) - (bW * 2);
+                        canvas.width = cW;
+                        canvas.height = cH;
+                        ctx.drawImage(video, cX, cY, cW, cH, 0, 0, cW, cH);
+                        finalCropW = cW; finalCropH = cH;
+                    } else {
+                        // Total Failure
+                        alert("Falha na Captura Precisa. Por favor, selecione 'Esta Guia' ao compartilhar.");
+                        canvas.width = capW;
+                        canvas.height = capH;
+                        ctx.drawImage(video, 0, 0);
+                    }
+                }
+
+                // 5. Cleanup UI
+                targetBox.style.border = originalBorder;
+                targetBox.style.boxShadow = originalShadow;
+                overlay.style.display = 'none';
+
+                // 6. Show Result
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                const preview = document.getElementById('enhancePreview');
+                preview.src = dataUrl;
+                preview.style.filter = 'none';
+
+                document.getElementById('enhanceModal').style.display = 'flex';
+                document.getElementById('btnProcessAI').style.display = 'inline-block';
+                document.getElementById('btnShareAI').style.display = 'none';
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+
+                btn.innerText = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+
+            } catch (e) {
+                console.error(e);
+                alert("Erro Capture: " + e.message);
+                targetBox.style.border = "2px dashed red";
+            } finally {
+                if (stream) stream.getTracks().forEach(t => t.stop());
+            }
+        }
+
+        // 4. Capture Logic (V12 - Pure Math Canvas - No Stream)
+        // Recommended by User for 100% Precision
+        function captureSniperTargetV12() {
+            const videoElement = document.getElementById('player');
+            const overlayElement = document.getElementById('targetBox');
+
+            // Check globals
+            const zoomAtual = (typeof dZoom !== 'undefined') ? dZoom : 1;
+
+            // 1. Real Video Dimensions (e.g. 1920x1080)
+            const vW = videoElement.videoWidth;
+            const vH = videoElement.videoHeight;
+
+            // 2. Screen Dimensions (CSS Rendered)
+            const rectVideo = videoElement.getBoundingClientRect();
+            const rectAlvo = overlayElement.getBoundingClientRect();
+
+            console.log(`[V12 Logic] Real: ${vW}x${vH}, Rendered: ${rectVideo.width}x${rectVideo.height}, Zoom: ${zoomAtual}`);
+
+            // 3. Relative Position Calc (Removing Zoom Factor)
+            // (rectAlvo.left - rectVideo.left) is the visual distance in pixels ON SCREEN.
+            // Dividing by zoomAtual reverses the CSS transform scale to get "base CSS pixels".
+            const xRelativo = (rectAlvo.left - rectVideo.left) / zoomAtual;
+            const yRelativo = (rectAlvo.top - rectVideo.top) / zoomAtual;
+
+            // Dimensions also need to be un-zoomed
+            const larguraRelativa = rectAlvo.width / zoomAtual;
+            const alturaRelativa = rectAlvo.height / zoomAtual;
+
+            // 4. Map to Real Video Pixels
+            // Scale Factor = Real Pixels / Base CSS Pixels
+            // Base CSS Pixels = Rendered Width / Zoom
+            const cssBaseW = rectVideo.width / zoomAtual;
+            const cssBaseH = rectVideo.height / zoomAtual;
+
+            const scaleX = vW / cssBaseW;
+            const scaleY = vH / cssBaseH;
+
+            const sx = xRelativo * scaleX;
+            const sy = yRelativo * scaleY;
+            const sWidth = larguraRelativa * scaleX;
+            const sHeight = alturaRelativa * scaleY;
+
+            console.log(`[V12 Coords] SX:${sx} SY:${sy} W:${sWidth} H:${sHeight}`);
+
+            // 5. Setup Canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = sWidth;
+            canvas.height = sHeight;
+            const ctx = canvas.getContext('2d');
+
+            try {
+                // 6. The Secret: Draw directly from Video Element
+                // sx, sy, sWidth, sHeight -> Source Rectangle (Video File)
+                // 0, 0, sWidth, sHeight -> Destination (Canvas)
+                ctx.drawImage(videoElement, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+
+                // Success Path
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                const preview = document.getElementById('enhancePreview');
+                preview.src = dataUrl;
+                preview.style.filter = 'none';
+
+                // UI Transitions
+                document.getElementById('enhanceModal').style.display = 'flex';
+                document.getElementById('btnProcessAI').style.display = 'inline-block';
+                document.getElementById('btnShareAI').style.display = 'none';
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+                document.getElementById('sniperOverlay').style.display = 'none'; // Hide Target
+
+                const btn = document.getElementById('btnMagicAction');
+                btn.innerText = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+
+            } catch (e) {
+                console.error("[V12] Error:", e);
+                if (e.name === 'SecurityError') {
+                    alert("Erro de Segurança (CORS): O vídeo não permite captura direta.\nCertifique-se que o servidor envia headers CORS corretos.");
+                } else {
+                    alert("Erro V12: " + e.message);
+                }
+            }
+        }
+
+        // 4. Capture Logic (V13 - Pure Math + CROP Correction + DUAL CONTEXT)
+        // Handles Zoom AND Split-Screen Crops (e.g. 50% Bottom)
+        function captureSniperTargetV13() {
+            const videoElement = document.getElementById('player');
+            const overlayElement = document.getElementById('targetBox');
+
+            // Checks
+            const zoomAtual = (typeof dZoom !== 'undefined') ? dZoom : 1;
+            const activeCrop = (typeof CROP !== 'undefined') ? CROP : 0;
+
+            // 1. Real Video Dimensions (Source File)
+            const vW = videoElement.videoWidth;
+            const vH = videoElement.videoHeight;
+
+            // 2. Determine "Visible Source Height" based on Crop Mode
+            let visibleSourceH = vH;
+            let sourceOffsetY = 0;
+
+            if (activeCrop === 1) { // Top 50%
+                visibleSourceH = vH / 2;
+                sourceOffsetY = 0;
+            } else if (activeCrop === 2) { // Bottom 50%
+                visibleSourceH = vH / 2;
+                sourceOffsetY = vH / 2;
+            } else if (activeCrop === 3) { // Top 33%
+                visibleSourceH = vH / 3;
+                sourceOffsetY = 0;
+            } else if (activeCrop === 4) { // Mid 33%
+                visibleSourceH = vH / 3;
+                sourceOffsetY = vH / 3;
+            } else if (activeCrop === 5) { // Bot 33%
+                visibleSourceH = vH / 3;
+                sourceOffsetY = (vH / 3) * 2;
+            }
+
+            // 3. Screen Dimensions (CSS Rendered)
+            const rectVideo = videoElement.getBoundingClientRect();
+            const rectAlvo = overlayElement.getBoundingClientRect();
+
+            console.log(`[V13] Crop:${activeCrop} Real:${vW}x${vH} VisibleH:${visibleSourceH} OffY:${sourceOffsetY}`);
+
+            // 4. Relative Position on Screen (Un-Zoomed)
+            const xRelativo = (rectAlvo.left - rectVideo.left) / zoomAtual;
+            const yRelativo = (rectAlvo.top - rectVideo.top) / zoomAtual;
+
+            const larguraRelativa = rectAlvo.width / zoomAtual;
+            const alturaRelativa = rectAlvo.height / zoomAtual;
+
+            // 5. Map to Real Video Pixels
+            const cssBaseW = rectVideo.width / zoomAtual;
+            const cssBaseH = rectVideo.height / zoomAtual;
+
+            const scaleX = vW / cssBaseW;
+            const scaleY = visibleSourceH / cssBaseH;
+
+            // Apply Scale and Add Offset
+            const sx = (xRelativo * scaleX);
+            const sy = (yRelativo * scaleY) + sourceOffsetY;
+            const sWidth = larguraRelativa * scaleX;
+            const sHeight = alturaRelativa * scaleY;
+
+            console.log(`[V13 Coords] SX:${sx} SY:${sy} W:${sWidth} H:${sHeight}`);
+
+            try {
+                // --- A. CAPTURE CONTEXT (FULL FRAME from Video Source - Respecting Crop) ---
+                // We capture only the VISIBLE part (e.g. Top 50%) as context, not the full hidden file.
+                const canvasCtx = document.createElement('canvas');
+                canvasCtx.width = vW;
+                canvasCtx.height = visibleSourceH; // Fix: Height is the VISIBLE height
+                const ctxContext = canvasCtx.getContext('2d');
+
+                // Draw only the visible slice
+                ctxContext.drawImage(videoElement,
+                    0, sourceOffsetY, vW, visibleSourceH, // Source: X, Y, W, H (Crop)
+                    0, 0, vW, visibleSourceH              // Dest: X, Y, W, H
+                );
+                const contextDataUrl = canvasCtx.toDataURL('image/jpeg', 0.85);
+
+                // --- B. CAPTURE TARGET (CROP Pure Math) ---
+                const canvasTarget = document.createElement('canvas');
+                canvasTarget.width = sWidth;
+                canvasTarget.height = sHeight;
+                const ctxTarget = canvasTarget.getContext('2d');
+                ctxTarget.drawImage(videoElement, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+                const targetDataUrl = canvasTarget.toDataURL('image/jpeg', 0.95);
+
+                // --- UPDATE UI ---
+                const preview = document.getElementById('enhancePreview');
+                preview.dataset.context = contextDataUrl;
+                preview.dataset.target = targetDataUrl;
+                preview.src = targetDataUrl;
+                preview.style.filter = 'none';
+
+                // Helper Toggle UI
+                let ctxLabel = document.getElementById('previewLabel');
+                if (!ctxLabel) {
+                    const container = preview.parentNode;
+                    container.style.position = 'relative';
+
+                    ctxLabel = document.createElement('div');
+                    ctxLabel.id = 'previewLabel';
+                    Object.assign(ctxLabel.style, {
+                        position: 'absolute', bottom: '0', left: '0', width: '100%',
+                        background: 'rgba(0,0,0,0.85)', color: '#fff', padding: '6px 0', fontSize: '0.9rem',
+                        textAlign: 'center', pointerEvents: 'none', borderTop: '1px solid #444', textTransform: 'uppercase', letterSpacing: '1px'
+                    });
+                    container.appendChild(ctxLabel);
+
+                    const btnToggle = document.createElement('button');
+                    btnToggle.innerText = "👁️ Ver Contexto";
+                    btnToggle.id = 'btnToggleContext';
+                    Object.assign(btnToggle.style, {
+                        position: 'absolute', top: '10px', right: '10px', zIndex: '10',
+                        padding: '5px 10px', background: '#333', color: 'white', border: '1px solid #555', cursor: 'pointer'
+                    });
+                    btnToggle.onclick = (e) => {
+                        e.stopPropagation();
+                        const img = document.getElementById('enhancePreview');
+                        const lbl = document.getElementById('previewLabel');
+                        if (img.src === img.dataset.target) {
+                            img.src = img.dataset.context;
+                            img.style.objectFit = 'contain';
+                            lbl.innerText = "VISUALIZAÇÃO: CONTEXTO (CENA)";
+                            btnToggle.innerText = "🎯 Ver Corte";
+                        } else {
+                            img.src = img.dataset.target;
+                            img.style.objectFit = 'contain';
+                            lbl.innerText = "VISUALIZAÇÃO: CORTE (ALVO)";
+                            btnToggle.innerText = "👁️ Ver Contexto";
+                        }
+                    };
+                    // container.appendChild(btnToggle); // REMOVED (Replaced by Tabs)
+
+                    // Reset Tabs logic
+                    document.getElementById('tabEnhanced').disabled = true;
+                    switchTab('target');
+                } else {
+                    document.getElementById('previewLabel').innerText = "VISUALIZAÇÃO: CORTE (ALVO)";
+                    // Reset Tabs logic for re-opening
+                    document.getElementById('tabEnhanced').disabled = true;
+                    switchTab('target');
+                }
+
+                document.getElementById('enhanceModal').style.display = 'flex';
+                document.getElementById('btnProcessAI').style.display = 'inline-block';
+                document.getElementById('btnShareAI').style.display = 'none';
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+                document.getElementById('sniperOverlay').style.display = 'none';
+
+                const btn = document.getElementById('btnMagicAction');
+                btn.innerText = '✨ Melhorar Imagem';
+                btn.style.background = 'linear-gradient(135deg, #6200ea, #b388ff)';
+
+            } catch (e) {
+                console.error("[V13] Error:", e);
+                if (e.name === 'SecurityError') {
+                    alert("Erro CORS: Servidor de vídeo bloqueou acesso aos pixels.");
+                } else {
+                    alert("Erro V13: " + e.message);
+                }
+            }
+        }
+
+        // Auto load
+        fetchData();
+
+        // --- DUAL IMAGE AI OVERRIDES (Applied at Runtime) ---
+
+        console.log("Applying AI Dual Image Patches...");
+
+    </script>
+    <script>
+        // --- DISABLE INACTIVITY OPTIMIZATION (WAKE LOCK) ---
+        // User Request: "Desabilite a otimização a cada 15 min de inatividade"
+        // This effectively prevents the screen from sleeping and tells the browser not to discard the tab.
+        let wakeLock = null;
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log("[Power] Wake Lock Active (Screen will not sleep)");
+
+                    wakeLock.addEventListener('release', () => {
+                        console.log("[Power] Wake Lock Released");
+                    });
+                }
+            } catch (err) {
+                console.warn(`[Power] Wake Lock Failed: ${err.message}`);
+            }
+        }
+
+        // Re-request on visibility change (e.g. switching tabs and coming back)
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
+
+        // Try on load and on first interaction
+        requestWakeLock();
+        document.addEventListener('click', () => { requestWakeLock(); }, { once: true });
+
+        // Anti-Idle Keepalive (Log heartbeat)
+        setInterval(() => {
+            console.log("[System] Anti-Idle Heartbeat (Keep-Alive)");
+        }, 60000);
+    </script>
+    </body>
+
+</html>

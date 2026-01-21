@@ -1,0 +1,65 @@
+# Python & Virtual Env
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs & Debug
+*.log
+*.err
+api_debug.log
+recorder.log
+recorder.err
+
+# Video Storage (CRÍTICO - Não subir Gigabytes de vídeo)
+go2rtc_bin/storage/
+storage/
+storage_*/
+test_lab_hd/storage_test/
+frigate/storage/
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.ts
+
+# Bases de Dados (Índices Voláteis)
+# Mantemos cameras.db pois contém a configuração do sistema
+monitor.db
+*.sqlite3-journal
+
+# Credenciais e Secrets
+secrets.yml
+config/secrets.yml
+
+# Arquivos de Sistema e IDE
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Pastas de Backup/Temporárias criadas pelos scripts
+*_backup_*/
+bkp_rollback/
+archive_debug/
+archive/
+
+# Binaries
+cloudflared.exe
+cert.pem
+
+# Broken Files (OneDrive Lock / Reparse Point)
+client/
+
+
+

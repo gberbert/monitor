@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuração NVR | OS BERBERTS</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --text: #e0e0e0;
+            --accent: #26a69a;
+            --danger: #cf6679;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 24px;
+            cursor: pointer;
+            margin-right: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 400;
+        }
+
+        .section {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--accent);
+            font-size: 1.2rem;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .hint {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th {
+            text-align: left;
+            color: #888;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        /* Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #444;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--accent);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(14px);
+        }
+
+        .btn-save {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            float: right;
+        }
+
+        .btn-save:hover {
+            background: #2bbbad;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <button class="back-btn" onclick="window.location.href='dashboard.html'">←</button>
+        <h1>Configuração NVR</h1>
+        <div style="margin-left:auto; color:#666; font-size:0.9rem">v2.0</div>
+    </div>
+
+    <!-- GLOBAL SETTINGS -->
+    <div class="section">
+        <h2>Armazenamento Global</h2>
+        <div class="form-group">
+            <label>Diretório de Gravação (Fixo pelo Sistema)</label>
+            <input type="text" id="storagePath" disabled
+                style="opacity:0.6; cursor:not-allowed; background:#1a1a1a; color:#888;">
+            <div class="hint">O diretório é gerenciado automaticamente pelo sistema (go2rtc_bin/storage) para garantir
+                integridade.
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Quota de Disco (GB)</label>
+            <input type="number" id="diskQuota" value="500">
+            <div class="hint">A limpeza automática ocorre quando o espaço livre cai abaixo de 5GB OU quando o uso desta
+                pasta excede o valor configurado acima.</div>
+        </div>
+        <button class="btn-save" onclick="saveGlobal()">Salvar Global</button>
+        <div style="clear:both"></div>
+    </div>
+
+    <!-- AI SETTINGS -->
+    <div class="section">
+        <h2>Inteligência Artificial (Google Gemini)</h2>
+        <div class="form-group">
+            <label>API Key</label>
+            <input type="text" id="geminiKey" placeholder="Ex: AIzaSy...">
+            <div class="hint">Chave de API do Google Gemini para melhoria de imagem.</div>
+        </div>
+        <div class="form-group">
+            <label>Modelo de Texto (Descrição)</label>
+            <input type="text" id="geminiModelText" value="gemini-1.5-flash-latest">
+            <div class="hint">Modelo rápido parar ler a imagem e gerar o prompt (Ex: gemini-1.5-flash-latest).</div>
+        </div>
+        <div class="form-group">
+            <label>Prompt Inicial (Passo A)</label>
+            <textarea id="geminiPromptA" rows="4"
+                style="width:100%; background:#2a2a2a; border:1px solid #444; color:white; padding:10px; border-radius:4px;"></textarea>
+            <div class="hint">Prompt enviado ao modelo de visão para descrever a cena antes de gerar a nova imagem.
+                (Variável dinâmica)</div>
+        </div>
+        <div class="form-group">
+            <label>Prompt de Auditor de QA</label>
+            <textarea id="geminiPromptQA" rows="3"
+                style="width:100%; background:#2a2a2a; border:1px solid #444; color:white; padding:10px; border-radius:4px;"></textarea>
+            <div class="hint">Prompt utilizado para a etapa de validação da imagem gerada (Auditoria).</div>
+        </div>
+        <div class="form-group">
+            <label>Modelo de Imagem (Upscaling/Generation)</label>
+            <input type="text" id="geminiModel" value="imagen-3">
+            <div class="hint">Modelo generativo para recriar a imagem (Ex: imagen-3, stable-diffusion).</div>
+        </div>
+        <button class="btn-save" onclick="saveAI()">Salvar AI</button>
+        <div style="clear:both"></div>
+    </div>
+
+    <!-- ... (Camera Rules) ... -->
+
+    <script>
+        // INIT
+        async function loadData() {
+            // 1. Load Global
+            try {
+                const r = await fetch('/api/nvr/config');
+                const conf = await r.json();
+                document.getElementById('storagePath').value = conf.storage_path || 'go2rtc_bin/storage';
+                document.getElementById('diskQuota').value = conf.disk_quota_gb || 500;
+                // AI
+                if (conf.gemini_api_key) document.getElementById('geminiKey').value = conf.gemini_api_key;
+                if (conf.gemini_model) document.getElementById('geminiModel').value = conf.gemini_model;
+                if (conf.gemini_model_text) document.getElementById('geminiModelText').value = conf.gemini_model_text;
+                if (conf.gemini_prompt_step_a) document.getElementById('geminiPromptA').value = conf.gemini_prompt_step_a;
+                if (conf.gemini_prompt_qa) document.getElementById('geminiPromptQA').value = conf.gemini_prompt_qa;
+            } catch (e) { console.error("Erro ao carregar config:", e); }
+
+            // 2. Load Cameras
+            try {
+                const r = await fetch('/api/cameras');
+                const cams = await r.json();
+                renderTable(cams);
+            } catch (e) {
+                console.error("Erro ao carregar câmeras:", e);
+                // document.getElementById('loading').innerText = ... (Element removed)
+            }
+        }
+
+        async function saveGlobal() {
+            const data = {
+                disk_quota_gb: parseInt(document.getElementById('diskQuota').value),
+                // storage_path is fixed/disabled, but API might expect it or ignore it.
+                // sending just in case or API handles partial updates
+            };
+            try {
+                const res = await fetch('/api/nvr/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    alert('Configuração Global Salva!');
+                } else {
+                    const txt = await res.text();
+                    alert('Erro ao salvar Global: ' + res.status + ' - ' + txt);
+                }
+            } catch (e) { alert('Erro de Conexão: ' + e.message); }
+        }
+
+        // ... form rendering ...
+
+        async function saveAI() {
+            const data = {
+                gemini_api_key: document.getElementById('geminiKey').value,
+                gemini_model: document.getElementById('geminiModel').value,
+                gemini_model_text: document.getElementById('geminiModelText').value,
+                gemini_prompt_step_a: document.getElementById('geminiPromptA').value,
+                gemini_prompt_qa: document.getElementById('geminiPromptQA').value
+            };
+            try {
+                const res = await fetch('/api/nvr/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    alert('Configuração de IA Salva!');
+                } else {
+                    const txt = await res.text();
+                    alert('Erro ao salvar IA: ' + res.status + ' - ' + txt);
+                }
+            } catch (e) { alert('Erro de Conexão: ' + e.message); }
+        }
+
+        async function saveCam(mac) {
+            // Precisamos pegar os dados atuais da camera e UPDATAR apenas rec e ret
+            // Como API save_camera precisa de tudo, vamos ler do cache (ou buscar de novo)
+            // Maneira mais rapida: fetch cameras, find, update, save.
+
+            try {
+                const r = await fetch('/api/cameras'); // Refresh para ter dados frescos
+                const cams = await r.json();
+                const cam = cams.find(c => c.mac === mac);
+                if (!cam) return;
+
+                const newRec = document.getElementById(`rec_${mac}`).checked ? 1 : 0;
+                const newRet = parseInt(document.getElementById(`ret_${mac}`).value);
+
+                // Payload Merge
+                const payload = {
+                    ...cam,
+                    record_enabled: newRec,
+                    retention_days: newRet
+                };
+
+                // Remove campos extras que save_camera nao espera (is_online, stream_key, etc)
+                // Mas save_camera usa get() entao campos extras sao ignorados.
+
+                const res = await fetch('/api/save_camera', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) alert(`Regra para ${cam.name} salva!`);
+                else alert('Erro ao salvar');
+
+            } catch (e) { alert('Erro: ' + e); }
+        }
+
+        loadData();
+    </script>
+</body>
+
+</html>

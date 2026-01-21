@@ -1,0 +1,7 @@
+{
+    "server_url": "http://localhost:5000",
+    "remote_url": "https://tagged-ross-led-mitsubishi.trycloudflare.com/dashboard.html",
+    "auth_token": "",
+    "mode": "local",
+    "use_gpu": false
+}

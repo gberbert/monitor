@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador - Antigravity VMS</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <style>
+        body {
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            position: absolute;
+            top: 0;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .back-btn {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            background: #333;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .quality-btn {
+            background: #444;
+            color: #ddd;
+            border: 1px solid #555;
+            transition: all 0.2s;
+            min-width: 80px;
+            justify-content: center;
+        }
+
+        /* Cores por Nível */
+        .q-sd {
+            border-color: #555;
+            color: #aaa;
+        }
+
+        .q-hd {
+            border-color: #26a69a;
+            color: #26a69a;
+            background: rgba(38, 166, 154, 0.1);
+        }
+
+        .q-uhd {
+            border-color: #7c4dff;
+            color: #7c4dff;
+            background: rgba(124, 77, 255, 0.1);
+            box-shadow: 0 0 10px rgba(124, 77, 255, 0.3);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #status-log {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<style>
+    /* ... existing styles ... */
+    .loader {
+        border: 8px solid #333;
+        /* Light grey */
+        border-top: 8px solid #3498db;
+        /* Blue */
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        animation: spin 2s linear infinite;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin-top: -30px;
+        margin-left: -30px;
+        z-index: 5;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+</head>
+
+<body>
+
+    <div class="top-bar">
+        <a href="dashboard.html" class="back-btn">⬅ Voltar</a>
+        <div class="actions">
+            <!-- Quality Cycle Button -->
+            <button id="btn-quality" onclick="cycleQuality()" class="back-btn quality-btn q-sd">SD</button>
+            <button onclick="document.getElementById('mjpeg-stream').requestFullscreen()" class="back-btn">⛶
+                Full</button>
+            <button onclick="openMagicLens()" class="back-btn"
+                style="background: linear-gradient(135deg, #6200ea, #b388ff); border:1px solid #a375ff; margin-left:10px;">✨
+                AI</button>
+        </div>
+    </div>
+
+    <!-- MJPEG Player -->
+    <div
+        style="display: flex; justify-content: center; align-items: center; height: 100%; background: #000; position:relative;">
+        <div id="loader" class="loader"></div>
+        <img id="mjpeg-stream" crossorigin="anonymous"
+            style="max-width: 100%; max-height: 100%; object-fit: contain; opacity:0; transition:opacity 0.3s;" alt="">
+    </div>
+
+    <div id="status-log">Modo: Carregando...</div>
+
+    <!-- SNIPER OVERLAY -->
+    <div id="sniperOverlay"
+        style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,20,0,0.3); z-index: 999; align-items: center; justify-content: center; pointer-events: none;">
+        <div id="targetBox"
+            style="width: 250px; height: 250px; border: 2px solid #ff1744; box-shadow: 0 0 15px #ff1744; position: relative; display: flex; align-items: center; justify-content: center;">
+            <div style="position:absolute; width:100%; height:1px; background:rgba(255,23,68,0.5);"></div>
+            <div style="position:absolute; height:100%; width:1px; background:rgba(255,23,68,0.5);"></div>
+            <!-- Corners -->
+            <div
+                style="position:absolute; top:-2px; left:-2px; width:20px; height:20px; border-top:4px solid #ff1744; border-left:4px solid #ff1744;">
+            </div>
+            <div
+                style="position:absolute; top:-2px; right:-2px; width:20px; height:20px; border-top:4px solid #ff1744; border-right:4px solid #ff1744;">
+            </div>
+            <div
+                style="position:absolute; bottom:-2px; left:-2px; width:20px; height:20px; border-bottom:4px solid #ff1744; border-left:4px solid #ff1744;">
+            </div>
+            <div
+                style="position:absolute; bottom:-2px; right:-2px; width:20px; height:20px; border-bottom:4px solid #ff1744; border-right:4px solid #ff1744;">
+            </div>
+            <div
+                style="margin-top:-180px; color:#ff1744; font-weight:bold; font-family:monospace; background:rgba(0,0,0,0.8); padding:2px 5px;">
+                TARGET LOCKED</div>
+        </div>
+        <div
+            style="position:absolute; bottom:80px; color:white; text-align:center; text-shadow:0 1px 3px black; font-family:monospace;">
+            Posicione o alvo (Zoom/Pan)<br>
+            <button onclick="captureSniperTargetV13()"
+                style="pointer-events:auto; margin-top:10px; background:#ff1744; color:white; border:none; padding:10px 20px; font-weight:bold; cursor:pointer; font-size:1.2rem;">CAPTURAR
+                AGORA</button>
+            <br>
+            <button onclick="closeMagicLens()"
+                style="pointer-events:auto; margin-top:10px; background:#444; color:white; border:none; padding:5px 10px; cursor:pointer;">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- ENHANCE MODAL (Standardized) -->
+    <div id="enhanceModal"
+        style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center;">
+        <h2
+            style="color:#b388ff; font-family:'Courier New', monospace; text-transform:uppercase; letter-spacing:2px; margin-bottom:10px;">
+            AI ENHANCEMENT PROTOCOL</h2>
+
+        <div id="aiDisplayWrapper"
+            style="display:flex; flex-direction:column; align-items:stretch; width:fit-content; max-width:95vw;">
+            <!-- TABS -->
+            <div style="display:flex; gap:0; margin-bottom:0; width:100%; z-index:1001;">
+                <button id="tabTarget" class="tab-btn active" onclick="switchTab('target')">ORIGINAL</button>
+                <button id="tabEnhanced" class="tab-btn" onclick="switchTab('enhanced')" disabled>MELHORADA</button>
+                <button id="tabContext" class="tab-btn" onclick="switchTab('context')">CONTEXTO</button>
+            </div>
+            <style>
+                .tab-btn {
+                    flex: 1;
+                    padding: 10px;
+                    background: #1a1a1a;
+                    border: 1px solid #444;
+                    border-bottom: none;
+                    color: #888;
+                    cursor: pointer;
+                    font-family: 'Segoe UI', sans-serif;
+                    font-size: 0.9rem;
+                    white-space: nowrap;
+                }
+
+                .tab-btn.active {
+                    background: #000;
+                    color: #fff;
+                    border-color: #b388ff;
+                    border-bottom: 2px solid #000;
+                    margin-bottom: -2px;
+                    z-index: 10;
+                    font-weight: bold;
+                }
+
+                @keyframes scan {
+                    0% {
+                        top: 0;
+                    }
+
+                    100% {
+                        top: 100%;
+                    }
+                }
+            </style>
+
+            <div
+                style="position:relative; width:auto; height:65vh; border:1px solid #444; border-top:2px solid #b388ff; background:#000; display:flex; justify-content:center;">
+                <img id="enhancePreview"
+                    style="width: auto; height: 100%; object-fit: contain; display: block; filter: brightness(0.8) sepia(1) hue-rotate(240deg); min-width: 320px;">
+
+                <!-- SCAN LINE -->
+                <div id="scanLine"
+                    style="position: absolute; top:0; left:0; right:0; height:5px; background:cyan; box-shadow:0 0 10px cyan; opacity:0; pointer-events:none;">
+                </div>
+
+                <!-- CONTROLS -->
+                <div
+                    style="position:absolute; top:10px; right:10px; display:flex; gap:5px; z-index:25; align-items:center;">
+                    <button id="btnShareAI" onclick="shareEnhanced()" title="Compartilhar"
+                        style="display:none; background: rgba(0,0,0,0.6); border: 1px solid #00c853; color: #00c853; font-weight: bold; padding: 4px 10px; cursor: pointer; font-size: 1rem;">📤</button>
+                    <div
+                        style="background:rgba(0,0,0,0.7); color:#00e5ff; font-family:monospace; padding:4px 8px; font-weight:bold; border:1px solid #00e5ff;">
+                        <span id="loadingPercent">0%</span>
+                    </div>
+                </div>
+
+                <div id="enhanceLoading"
+                    style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: cyan; font-family: 'Courier New', monospace; font-size: 1.5rem; display: none; text-align: center;">
+                    analyzing...</div>
+
+                <button id="btnProcessAI" onclick="processAI()"
+                    style="position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 90%; background: linear-gradient(90deg, #6200ea, #00e5ff); color: white; font-weight: bold; padding: 8px 0; border: 1px solid rgba(255,255,255,0.3); text-transform: uppercase; cursor: pointer; z-index: 20; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">EXECUTAR
+                    MELHORIA COM IA</button>
+            </div>
+        </div>
+        <div style="margin-top:20px; display:flex; gap:15px; justify-content: center; width: 100%;">
+            <button class="btn" onclick="closeMagicLens()"
+                style="background:#444; color:white; padding:10px 20px; border:none; cursor:pointer; width: 200px;">FECHAR</button>
+        </div>
+    </div>
+
+    <script>
+        // Auth Check
+        if (sessionStorage.getItem('vms_auth') !== 'true') {
+            window.location.href = 'index.html';
+        }
+
+        const img = document.getElementById('mjpeg-stream');
+        const loader = document.getElementById('loader');
+        const statusLog = document.getElementById('status-log');
+        const btnQuality = document.getElementById('btn-quality');
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // Base Logic
+        // Keys: {name}_mjpeg -> {name}_hd -> {name}_uhd
+        let currentKey = urlParams.get('src');
+        // Initial Level Detection
+        let currentLevel = 'sd'; // sd, hd, uhd
+        if (currentKey.endsWith('_uhd')) currentLevel = 'uhd';
+        else if (currentKey.endsWith('_hd')) currentLevel = 'hd';
+        else currentLevel = 'sd'; // default '_mjpeg'
+
+        // Direct Connection Logic (Production Port 1984, Test 1985)
+        const isLocalIP = ['localhost', '127.0.0.1'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+        let go2rtcPort = (window.location.port === '5001') ? '1985' : '1984';
+        const BASE_HOST = isLocalIP ? `http://${window.location.hostname}:${go2rtcPort}` : '';
+
+        updateBtnUI();
+
+        function updateBtnUI() {
+            // ... [Keep existing logic] ...
+            btnQuality.className = 'back-btn quality-btn';
+
+            // Logic: Button shows DESTINATION (Next Step)
+            if (currentLevel === 'sd') {
+                btnQuality.innerText = "Ir para HD 720p";
+                btnQuality.classList.remove('q-sd'); btnQuality.classList.remove('q-uhd'); btnQuality.classList.add('q-hd');
+            } else if (currentLevel === 'hd') {
+                btnQuality.innerText = "Ir para UHD 1080p";
+                btnQuality.classList.remove('q-hd'); btnQuality.classList.add('q-uhd');
+            } else if (currentLevel === 'uhd') {
+                btnQuality.innerText = "Voltar p/ SD 360p";
+                btnQuality.classList.remove('q-uhd'); btnQuality.classList.add('q-sd');
+            }
+        }
+
+        function loadStream(key) {
+            statusLog.innerText = `Conectando a: ${key}...`;
+            // img.src = ""; // Avoid flicker logic? NO, reset to show loader
+            img.style.opacity = '0';
+            loader.style.display = 'block';
+
+            const streamUrl = `${BASE_HOST}/api/stream.mjpeg?src=${encodeURIComponent(key)}`;
+            console.log("Switching to:", streamUrl);
+
+            setTimeout(() => {
+                img.crossOrigin = "anonymous";
+                img.src = streamUrl;
+            }, 50);
+
+            // Update URL
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('src', key);
+            window.history.pushState({}, '', newUrl);
+        }
+
+        // ... [cycleQuality kept same] ...
+
+        function cycleQuality() {
+            if (!currentKey) return;
+            let baseName = currentKey;
+            if (baseName.endsWith('_mjpeg')) baseName = baseName.replace('_mjpeg', '');
+            else if (baseName.endsWith('_hd')) baseName = baseName.replace('_hd', '');
+            else if (baseName.endsWith('_uhd')) baseName = baseName.replace('_uhd', '');
+
+            let newSuffix = '';
+            if (currentLevel === 'sd') { currentLevel = 'hd'; newSuffix = '_hd'; }
+            else if (currentLevel === 'hd') { currentLevel = 'uhd'; newSuffix = '_uhd'; }
+            else { currentLevel = 'sd'; newSuffix = '_mjpeg'; }
+
+            let newKey = baseName + newSuffix;
+            currentKey = newKey;
+            updateBtnUI();
+            loadStream(newKey);
+        }
+
+        // Event Handlers
+        img.onload = () => {
+            loader.style.display = 'none';
+            img.style.opacity = '1';
+
+            let label = "";
+            if (currentLevel === 'sd') label = "Resolução Baixa (360p)";
+            if (currentLevel === 'hd') label = "Alta Definição (720p)";
+            if (currentLevel === 'uhd') label = "Ultra Definição (1080p)";
+            statusLog.innerText = `Status: ONLINE (${label})`;
+            statusLog.style.color = "#0f0";
+        };
+
+        img.onerror = () => {
+            // loader.style.display = 'block'; // Keep loader or show error icon?
+            // User wanted nicer loader. Error state is different.
+            statusLog.innerText = "Falha no Stream (Tentando reconectar...)";
+            statusLog.style.color = "orange";
+        };
+
+        // Init
+        setTimeout(() => {
+            if (!currentKey) {
+                statusLog.innerText = "Erro: Nenhuma câmera selecionada.";
+                statusLog.style.color = "red";
+            } else {
+                loadStream(currentKey);
+            }
+        }, 500);
+
+        // --- AI ENHANCEMENT LOGIC ---
+
+        // --- UNIVERSAL ZOOM & PAN LOGIC (MOUSE + TOUCH) ---
+
+        let currentScale = 1;
+        let pX = 0, pY = 0;
+        let isPanning = false, startX = 0, startY = 0;
+
+        // Touch specific vars
+        let initialPinchDistance = 0;
+        let initialScale = 1;
+
+        const container = img.parentElement;
+        container.style.overflow = 'hidden';
+        container.style.touchAction = 'none'; // Vital for gesture handling
+
+        function updateTransform() {
+            img.style.transform = `translate(${pX}px, ${pY}px) scale(${currentScale})`;
+        }
+
+        // --- MOUSE EVENTS ---
+        container.addEventListener('wheel', (e) => {
+            if (document.getElementById('sniperOverlay').style.display !== 'flex') return;
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            let newScale = currentScale * delta;
+            newScale = Math.min(Math.max(1, newScale), 10); // Limit 1x to 10x
+            currentScale = newScale;
+            updateTransform();
+        });
+
+        container.addEventListener('mousedown', (e) => {
+            if (document.getElementById('sniperOverlay').style.display !== 'flex') return;
+            isPanning = true;
+            startX = e.clientX - pX;
+            startY = e.clientY - pY;
+            container.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            e.preventDefault();
+            pX = e.clientX - startX;
+            pY = e.clientY - startY;
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isPanning) {
+                isPanning = false;
+                container.style.cursor = 'default';
+            }
+        });
+
+        // --- TOUCH EVENTS (PINCH ZOOM + PAN) ---
+        container.addEventListener('touchstart', (e) => {
+            if (document.getElementById('sniperOverlay').style.display !== 'flex') return;
+
+            if (e.touches.length === 2) {
+                // Pinch Start
+                isPanning = false; // Disable pan during pinch initiation
+                initialPinchDistance = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+                initialScale = currentScale;
+            } else if (e.touches.length === 1) {
+                // Pan Start
+                isPanning = true;
+                startX = e.touches[0].clientX - pX;
+                startY = e.touches[0].clientY - pY;
+            }
+        }, { passive: false });
+
+        container.addEventListener('touchmove', (e) => {
+            if (document.getElementById('sniperOverlay').style.display !== 'flex') return;
+            e.preventDefault(); // Prevent browser scroll
+
+            if (e.touches.length === 2) {
+                // Pinch Move
+                const dist = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+                if (initialPinchDistance > 0) {
+                    const delta = dist / initialPinchDistance;
+                    let newScale = initialScale * delta;
+                    newScale = Math.min(Math.max(1, newScale), 10); // Max 10x
+                    currentScale = newScale;
+                    updateTransform();
+                }
+            } else if (e.touches.length === 1 && isPanning) {
+                // Pan Move
+                pX = e.touches[0].clientX - startX;
+                pY = e.touches[0].clientY - startY;
+                updateTransform();
+            }
+        }, { passive: false });
+
+        container.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                initialPinchDistance = 0;
+            }
+            if (e.touches.length === 0) {
+                isPanning = false;
+            }
+        });
+
+        function openMagicLens() {
+            document.getElementById('sniperOverlay').style.display = 'flex';
+            // Enable Zoom/Pan hint?
+        }
+
+        function closeMagicLens() {
+            document.getElementById('sniperOverlay').style.display = 'none';
+            document.getElementById('enhanceModal').style.display = 'none';
+
+            // Reset Zoom
+            currentScale = 1; pX = 0; pY = 0; updateTransform();
+
+            // Reset AI State
+            const btnState = document.getElementById('btnProcessAI');
+            if (btnState) {
+                btnState.innerText = "EXECUTAR MELHORIA COM IA";
+                btnState.style.background = "linear-gradient(90deg, #6200ea, #00e5ff)";
+            }
+            document.getElementById('enhancePreview').src = "";
+            document.getElementById('btnShareAI').style.display = 'none';
+        }
+
+        function captureSniperTargetV13() {
+            const videoElement = document.getElementById('mjpeg-stream');
+            const overlayElement = document.getElementById('targetBox');
+            const overlayContainer = document.getElementById('sniperOverlay');
+
+            // 1. Real Dimensions
+            const vW = videoElement.naturalWidth || videoElement.width;
+            const vH = videoElement.naturalHeight || videoElement.height;
+
+            if (vW === 0 || vH === 0) return alert("Imagem não carregada ou inválida.");
+
+            // 2. Screen Dimensions (CSS Rendered with Transform)
+            const rectVideo = videoElement.getBoundingClientRect();
+            const rectAlvo = overlayElement.getBoundingClientRect();
+
+            // 3. Relative Logic (Un-Zoomed)
+            // Zoom factor acts on the rendered rectVideo. 
+            // We need to map the TargetBox relative to the Video Frame.
+
+            // Calculate overlap
+            // X relative to video left
+            const relX = rectAlvo.left - rectVideo.left;
+            const relY = rectAlvo.top - rectVideo.top;
+
+            // Scale Calculation
+            // How many video pixels fit in one screen pixel?
+            const scaleX = vW / rectVideo.width;
+            const scaleY = vH / rectVideo.height;
+
+            // Map Coordinates
+            const sx = relX * scaleX;
+            const sy = relY * scaleY;
+            const sWidth = rectAlvo.width * scaleX;
+            const sHeight = rectAlvo.height * scaleY;
+
+            console.log(`[Capture] Real:${vW}x${vH} RectVid:${rectVideo.width}x${rectVideo.height} SX:${sx} SY:${sy}`);
+
+            try {
+                // A. TARGET CROP
+                const canvas = document.createElement('canvas');
+                canvas.width = sWidth;
+                canvas.height = sHeight;
+                const ctx = canvas.getContext('2d');
+                // Check bounds to avoid error? drawImage handles clipping usually.
+                ctx.drawImage(videoElement, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+                const targetDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+                // B. CONTEXT (Full Frame)
+                // Since this is Player (Full Stream), Context is the whole image.
+                const canvasCtx = document.createElement('canvas');
+                canvasCtx.width = vW;
+                canvasCtx.height = vH;
+                canvasCtx.getContext('2d').drawImage(videoElement, 0, 0);
+                const contextDataUrl = canvasCtx.toDataURL('image/jpeg', 0.85);
+
+                // UI UPDATE
+                const preview = document.getElementById('enhancePreview');
+                preview.dataset.target = targetDataUrl;
+                preview.dataset.context = contextDataUrl;
+                preview.dataset.enhanced = ""; // Clear old
+
+                // Show Modal
+                overlayContainer.style.display = 'none';
+                document.getElementById('enhanceModal').style.display = 'flex';
+
+                // Set Tab
+                document.getElementById('tabEnhanced').disabled = true;
+                switchTab('target');
+
+                // Reset Loading
+                document.getElementById('scanLine').style.display = 'none'; // Or block if scanning? 
+                document.getElementById('scanLine').style.opacity = '0';
+                document.getElementById('enhanceLoading').style.display = 'none';
+                document.getElementById('btnProcessAI').style.display = 'block';
+
+            } catch (e) {
+                console.error(e);
+                alert("Erro Capture: " + e.message);
+                // Security Error if cross-origin without CORS
+                if (e.name === 'SecurityError') alert("Erro CORS: A imagem não permite captura.");
+            }
+        }
+
+        async function processAI() {
+            const preview = document.getElementById('enhancePreview');
+            const scanLine = document.getElementById('scanLine');
+            const loading = document.getElementById('enhanceLoading');
+            const pct = document.getElementById('loadingPercent');
+            const btnProcess = document.getElementById('btnProcessAI');
+
+            btnProcess.style.display = 'none';
+            scanLine.style.display = 'block';
+            scanLine.style.opacity = '1';
+            scanLine.style.animation = 'scan 2s linear infinite';
+            loading.style.display = 'block';
+
+            let p = 0;
+            const interval = setInterval(() => { p += Math.floor(Math.random() * 10); if (p > 95) p = 95; pct.innerText = p + "%"; }, 200);
+
+            try {
+                const imgTarget = preview.dataset.target;
+                const imgContext = preview.dataset.context;
+
+                const payload = { image_target: imgTarget, image_context: imgContext };
+
+                const res = await fetch('/api/nvr/enhance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+
+                clearInterval(interval);
+                pct.innerText = "100%";
+
+                if (json.success && json.image) {
+                    setTimeout(async () => {
+                        // SUCCESS
+                        preview.dataset.enhanced = json.image;
+                        try {
+                            const blobRes = await fetch(json.image);
+                            enhancedBlob = await blobRes.blob();
+                        } catch (e) { }
+
+                        document.getElementById('tabEnhanced').disabled = false;
+                        switchTab('enhanced');
+
+                        preview.style.filter = "none";
+                        scanLine.style.display = 'none';
+                        loading.style.display = 'none';
+                        document.getElementById('btnShareAI').style.display = 'block';
+
+                        // RECURSIVE
+                        btnProcess.style.display = 'block';
+                        btnProcess.innerText = "✨ MELHORAR NOVAMENTE (+)";
+                        btnProcess.style.background = "linear-gradient(90deg, #ff4081, #7c4dff)";
+
+                    }, 500);
+                } else {
+                    alert("Erro AI: " + (json.error || "Unknown"));
+                    resetAIState();
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Falha: " + e.message);
+                resetAIState();
+            }
+        }
+
+        function resetAIState() {
+            document.getElementById('btnProcessAI').style.display = 'block';
+            document.getElementById('scanLine').style.display = 'none';
+            document.getElementById('enhanceLoading').style.display = 'none';
+        }
+
+        function switchTab(mode) {
+            const img = document.getElementById('enhancePreview');
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(b => b.classList.remove('active'));
+
+            let src = null;
+            if (mode === 'target') {
+                src = img.dataset.target;
+                document.getElementById('tabTarget').classList.add('active');
+            } else if (mode === 'enhanced') {
+                src = img.dataset.enhanced;
+                document.getElementById('tabEnhanced').classList.add('active');
+            } else if (mode === 'context') {
+                src = img.dataset.context;
+                document.getElementById('tabContext').classList.add('active');
+            }
+
+            if (src) img.src = src;
+        }
+
+        async function shareEnhanced() {
+            // ... Copy logic from timeline_demo ...
+            try {
+                const preview = document.getElementById('enhancePreview');
+                const files = [];
+                const d = new Date();
+                const ts = d.toISOString().replace(/[:.]/g, '-');
+
+                async function addFile(dataUrl, name) {
+                    if (dataUrl && dataUrl.startsWith('data:')) {
+                        const res = await fetch(dataUrl);
+                        const blob = await res.blob();
+                        files.push(new File([blob], name, { type: "image/jpeg" }));
+                    }
+                }
+
+                if (preview.dataset.enhanced) await addFile(preview.dataset.enhanced, `evidence_AI_${ts}.jpg`);
+                if (preview.dataset.target) await addFile(preview.dataset.target, `evidence_ORIGINAL_${ts}.jpg`);
+                if (preview.dataset.context) await addFile(preview.dataset.context, `evidence_CONTEXT_${ts}.jpg`);
+
+                if (files.length === 0) return alert("Nada para compartilhar.");
+
+                const shareData = {
+                    title: 'NVR Evidence',
+                    text: 'Evidência IA',
+                    files: files
+                };
+                if (navigator.canShare && navigator.canShare(shareData)) {
+                    await navigator.share(shareData);
+                } else {
+                    alert("Compartilhamento nativo não suportado.");
+                }
+            } catch (e) { alert("Erro share: " + e.message); }
+        }
+
+    </script>
+</body>
+
+</html>

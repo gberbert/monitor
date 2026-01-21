@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Usuários</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: #121212;
+            color: #fff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR (Desktop) */
+        .sidebar {
+            width: 250px;
+            background-color: #1e1e1e;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #333;
+            transition: all 0.3s;
+        }
+
+        .logo {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 40px;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-item {
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #aaa;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+            transition: all 0.2s;
+        }
+
+        .menu-item:hover {
+            background-color: #333;
+            color: white;
+        }
+
+        .menu-item.active {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        /* CONTENT */
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        /* USER TABLE (Desktop Style) */
+        .card {
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px;
+            color: #888;
+            border-bottom: 1px solid #333;
+        }
+
+        td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-approved {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+
+        .status-pending {
+            background: rgba(255, 152, 0, 0.2);
+            color: #FF9800;
+        }
+
+        .btn-action {
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 5px;
+            font-weight: bold;
+            transition: opacity 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-action:hover {
+            opacity: 0.8;
+        }
+
+        .btn-approve {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #f44336;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            color: #888;
+            padding: 20px;
+        }
+
+        /* === MOBILE RESPONSIVE === */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            /* Sidebar vira Bottom Nav */
+            .sidebar {
+                width: 100%;
+                height: 60px;
+                /* Altura fixa */
+                flex-direction: row;
+                justify-content: space-around;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                padding: 0;
+                background: #1e1e1e;
+                border-right: none;
+                border-top: 1px solid #333;
+                z-index: 1000;
+            }
+
+            .logo {
+                display: none;
+            }
+
+            .menu-item {
+                flex: 1;
+                justify-content: center;
+                align-items: center;
+                border-radius: 0;
+                margin: 0;
+                flex-direction: column;
+                gap: 4px;
+                font-size: 0.7rem;
+                padding: 5px 0;
+            }
+
+            .menu-item span:first-child {
+                font-size: 1.2rem;
+            }
+
+            /* Icon */
+            .menu-item span:nth-child(2) {
+                display: block;
+            }
+
+            /* Text */
+
+            .main-content {
+                padding: 15px;
+                margin-bottom: 70px;
+                /* Espaço para o menu footer */
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            /* Transform Table into Cards */
+            table,
+            thead,
+            tbody,
+            th,
+            td,
+            tr {
+                display: block;
+            }
+
+            thead {
+                display: none;
+            }
+
+            tr {
+                background: #252525;
+                margin-bottom: 15px;
+                border-radius: 10px;
+                padding: 15px;
+                border: 1px solid #333;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+
+            td {
+                padding: 0;
+                border: none;
+                width: 100%;
+                text-align: center;
+            }
+
+            /* Username destacado */
+            td:nth-child(1) {
+                font-size: 1.4rem;
+                font-weight: bold;
+                margin-bottom: 0px;
+            }
+
+            /* Botões Full Width */
+            .btn-action {
+                width: 100%;
+                padding: 12px;
+                margin: 5px 0;
+                display: block;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="logo">🛡️ OS BERBERTS</div>
+        <a href="dashboard.html" class="menu-item"><span>📺</span> <span>Monitor</span></a>
+        <a href="events.html" class="menu-item"><span>📅</span> <span>Eventos</span></a>
+        <a href="users.html" class="menu-item active"><span>👥</span> <span>Acessos</span></a>
+        <div style="flex:1" class="mobile-hidden"></div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h1>Gestão de Acessos</h1>
+            <button onclick="loadData()"
+                style="background:none; border:none; color:#2196F3; cursor:pointer; font-size:1.5rem; padding:10px;">🔄</button>
+        </div>
+
+        <div class="card" style="padding-bottom:10px;">
+            <div id="table-container">
+                <div class="loading">Carregando usuários...</div>
+            </div>
+        </div>
+
+        <div style="margin-top:20px; color:#666; font-size:0.85rem; text-align:center;">
+            Gerencie quem tem acesso ao sistema de câmeras.
+        </div>
+    </div>
+
+    <!-- STYLE HELPER PARA MOBILE -->
+    <style>
+        @media (max-width: 768px) {
+            .mobile-hidden {
+                display: none !important;
+            }
+        }
+    </style>
+
+    <script>
+        async function loadData() {
+            const container = document.getElementById('table-container');
+            // Só mostra loading se estiver vazio para evitar piscada chata no refresh
+            if (!container.querySelector('table') && !container.querySelector('.user-card-mobile')) {
+                container.innerHTML = '<div class="loading">Atualizando...</div>';
+            }
+
+            try {
+                const res = await fetch('/api/users/all');
+                const users = await res.json();
+
+                if (users.length === 0) {
+                    container.innerHTML = '<div class="loading">Nenhum usuário encontrado.</div>';
+                    return;
+                }
+
+                let html = '<table><thead><tr><th>Usuário</th><th>Status</th><th>Ações</th></tr></thead><tbody>';
+
+                users.forEach(u => {
+                    const statusClass = u.approved ? 'status-approved' : 'status-pending';
+                    const statusText = u.approved ? 'Aprovado' : 'Pendente / Bloqueado';
+
+                    let actions = '';
+
+                    if (u.username !== 'admin') {
+                        // Toggle Button
+                        if (u.approved) {
+                            actions += `<button class="btn-action" style="background:#FF9800; color:white;" onclick="toggleWorker('${u.username}', true)">⏸ Bloquear</button>`;
+                        } else {
+                            actions += `<button class="btn-action btn-approve" onclick="toggleWorker('${u.username}', false)">✅ Liberar Acesso</button>`;
+                        }
+
+                        // Delete Button
+                        actions += `<button class="btn-action btn-delete" onclick="deleteWorker('${u.username}')">🗑️ Excluir</button>`;
+                    } else {
+                        actions += `<div style="padding:10px; color:#777; font-weight:bold;">Administrador Supremo</div>`;
+                    }
+
+                    html += `
+                        <tr>
+                            <td>${u.username}</td>
+                            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                            <td>${actions}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                container.innerHTML = html;
+
+            } catch (e) {
+                container.innerHTML = `<div class="loading" style="color:red">Erro: ${e}</div>`;
+            }
+        }
+
+        async function toggleWorker(username, currentStatus) {
+            // Se currentStatus é true (aprovado), vamos bloquear (enviar false). E vice-versa.
+            const newStatus = !currentStatus;
+            const actionName = newStatus ? "Liberar acesso" : "Bloquear acesso";
+
+            if (!confirm(`${actionName} para o usuário ${username}?`)) return;
+
+            // Feedback visual imediato (Opcional, mas bom)
+
+            try {
+                const res = await fetch('/api/users/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username, approved: newStatus })
+                });
+
+                if (res.ok) {
+                    loadData(); // Recarrega a lista para confirmar
+                } else {
+                    alert("Erro ao atualizar status.");
+                }
+            } catch (e) {
+                alert("Erro de conexão.");
+            }
+        }
+
+        async function deleteWorker(username) {
+            if (!confirm(`TEM CERTEZA? Isso excluirá permanentemente o usuário: ${username}.`)) return;
+
+            try {
+                const res = await fetch('/api/users/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+
+                if (res.ok) {
+                    loadData();
+                } else {
+                    alert("Erro ao excluir.");
+                }
+            } catch (e) {
+                alert("Erro de conexão.");
+            }
+        }
+
+        // Init
+        loadData();
+    </script>
+</body>
+
+</html>
